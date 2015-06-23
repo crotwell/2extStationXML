@@ -76,6 +76,8 @@ def main():
             
 
 # Finally after the instance is built export it. 
+        out = open("%s.%s"%(args[0], "extstaxml"), 'w')
+        rootobj.exportxml(out, 'FDSNStationXML', 'fsx', 0)
 #        rootobj.exportxml(sys.stdout, 'FDSNStationXML', 'fsx', 0)
 
 
