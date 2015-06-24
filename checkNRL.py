@@ -296,8 +296,8 @@ def printBlockettes(r):
       for key in sorted(b.iterkeys()):
         print "  %s  %s"%(key, b[key])
 
-def getChanCode(n, s, c):
-        return "%s.%s.%s.%s (%s)"%(n.code, s.code, c.locationCode, c.code, c.startDate.year)
+def getChanCodeId(n, s, c):
+        return "%s.%s.%s.%s (%s)"%(n.code, s.code, c.locationCode, c.code, c.startDate)
 
 def saveFinalSampRate(dataloggerDir):
     for root, dirs, files in os.walk(dataloggerDir):
@@ -332,7 +332,7 @@ def checkRespInNRL(nrlDir, staxml, areSimilarFunc, loggerRateIndex = None):
             for n in staxml.Network:
               for s in n.Station:
                 for c in s.Channel:
-                  chanCode = getChanCode(n, s, c)
+                  chanCode = getChanCodeId(n, s, c)
                   result = areSimilarFunc(c.Response, r)
                   if result[0]:
                     if VERBOSE: print "%s found match %s"%(chanCode, respfile,)
@@ -380,7 +380,7 @@ def main():
     for n in staxml.Network:
       for s in n.Station:
         for c in s.Channel:
-          chanCode = getChanCode(n, s, c)
+          chanCode = getChanCodeId(n, s, c)
           print "%s matches:"%(chanCode,)
           if chanCode in matchSensor and len(matchSensor[chanCode])>0:
             if len(matchSensor[chanCode]) > 1 :
