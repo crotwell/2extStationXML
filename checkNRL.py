@@ -134,9 +134,11 @@ def checkIntEqual(reason, valA, valB):
     else:
        return False, reason
 
-def checkFloatEqual(reason, valA, valB, tol):
-    #print "check float %s, %f, %f, < %f"%(reason, valA, valB, tol)
-    if abs(valA - valB) < tol:
+def checkFloatEqual(reason, valA, valB, tolPercent):
+    #print "check float %s, %f, %f, < %f"%(reason, valA, valB, tolPercent)
+    if valA == 0.0 and valB == 0:
+       return True,
+    if abs((valA - valB)/valA) < tolPercent:
        return True,
     else:
        return False, reason
@@ -167,7 +169,7 @@ def areSimilarStageB53(staxml, resp):
        zeros = getattr(staxml.PolesZeros, 'Zero', [])
        poles = getattr(staxml.PolesZeros, 'Pole', [])
        result = checkMultiple( [
-        ("A0 norm factor", float(staxml.PolesZeros.NormalizationFactor), float(resp['07']), 0.00001),
+        ("A0 norm factor", float(staxml.PolesZeros.NormalizationFactor), float(resp['07']), 0.001),
         ("num zeros", len(zeros), int(resp['09'])),
         ("num poles", len(poles), int(resp['14']))
        ])
@@ -175,11 +177,11 @@ def areSimilarStageB53(staxml, resp):
          return result
        checklist = []
        for zi in range(len(zeros)):
-             checklist.append(("%d zero real"%(zi,), float(zeros[zi].Real.ValueOf), float(resp['10-13'][zi][1]), 0.00001))
-             checklist.append(("%d zero imag"%(zi,), float(zeros[zi].Imaginary.ValueOf), float(resp['10-13'][zi][2]), 0.00001))
+             checklist.append(("%d zero real"%(zi,), float(zeros[zi].Real.ValueOf), float(resp['10-13'][zi][1]), 0.001))
+             checklist.append(("%d zero imag"%(zi,), float(zeros[zi].Imaginary.ValueOf), float(resp['10-13'][zi][2]), 0.001))
        for pi in range(len(staxml.PolesZeros.Pole)):
-             checklist.append(("%d pole real"%(pi,), float(poles[pi].Real.ValueOf), float(resp['15-18'][pi][1]), 0.00001))
-             checklist.append(("%d pole imag"%(pi,), float(poles[pi].Imaginary.ValueOf), float(resp['15-18'][pi][2]), 0.00001))
+             checklist.append(("%d pole real"%(pi,), float(poles[pi].Real.ValueOf), float(resp['15-18'][pi][1]), 0.001))
+             checklist.append(("%d pole imag"%(pi,), float(poles[pi].Imaginary.ValueOf), float(resp['15-18'][pi][2]), 0.001))
        result = checkMultiple(checklist)
     return result
 
@@ -196,9 +198,9 @@ def areSimilarStageB54(staxml, resp):
        if not result[0]:
            return result
        for ni  in range(len(numerators)):
-             checklist.append(("%d numerator "%(ni,), float(numerators[ni].ValueOf), float(resp['08-09'][ni][1]), 0.00001))
+             checklist.append(("%d numerator "%(ni,), float(numerators[ni].ValueOf), float(resp['08-09'][ni][1]), 0.001))
        for di in range(len(denominators)):
-             checklist.append(("%d denominator "%(di,), float(denominators[di].ValueOf), float(resp['11-12'][di][1]), 0.00001))
+             checklist.append(("%d denominator "%(di,), float(denominators[di].ValueOf), float(resp['11-12'][di][1]), 0.001))
        result = checkMultiple(checklist)
     return result
 
@@ -215,8 +217,8 @@ def areSimilarStageB58(staxml, resp):
     result = (False, "can't file blockette to match %s"%(resp[TYPE],))
     if resp[TYPE] == '058' and hasattr(staxml,'StageGain'):
        result = checkMultiple( [
-        ("Gain Value", float(staxml.StageGain.Value), float(resp['04']), 0.00001),
-        ("Gain Frequency", float(staxml.StageGain.Frequency), float(resp['05'].split()[0]), 0.00001)
+        ("Gain Value", float(staxml.StageGain.Value), float(resp['04']), 0.001),
+        ("Gain Frequency", float(staxml.StageGain.Frequency), float(resp['05'].split()[0]), 0.001)
        ])
     return result
 
@@ -368,9 +370,9 @@ def main():
     print "Sensor Check"
     matchSensor = checkNRL("nrl/sensors", staxml, areSimilarSensor)
     print "Logger Check"
-#    matchLogger = checkNRL("nrl/dataloggers", staxml, areSimilarLogger, loggerRateIndex)
-    loggerRateIndex = loadRespfileSampleRate('rt130_logger_samp_rate.sort')
-    matchLogger = checkNRL("nrl_rt130/dataloggers", staxml, areSimilarLogger, loggerRateIndex)
+    matchLogger = checkNRL("nrl/dataloggers", staxml, areSimilarLogger, loggerRateIndex)
+#    loggerRateIndex = loadRespfileSampleRate('rt130_logger_samp_rate.sort')
+#    matchLogger = checkNRL("nrl_rt130/dataloggers", staxml, areSimilarLogger, loggerRateIndex)
 
 
     for n in staxml.Network:
