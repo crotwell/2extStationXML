@@ -321,7 +321,7 @@ def possibleSampRateMatch(respfile, staxml, loggerRateIndex):
                     return True
     return False
 
-def checkNRL(nrlDir, staxml, areSimilarFunc, loggerRateIndex = None):
+def checkRespInNRL(nrlDir, staxml, areSimilarFunc, loggerRateIndex = None):
     matchDict = dict()
     if VERBOSE: print "walk %s"%(nrlDir,)
     for root, dirs, files in os.walk(nrlDir):
@@ -350,6 +350,18 @@ def loadRespfileSampleRate(loggerSampFile):
       out[words[1]] = float(words[0])
     return out
 
+def checkNRL(nrlDir, staxml):
+    loggerRateIndex = loadRespfileSampleRate('logger_samp_rate.sort')
+    print "loggerRateIndex has %d entries"%(len(loggerRateIndex,))
+
+    print "Sensor Check"
+    matchSensor = checkRespInNRL("%s/sensors"%(nrlDir,), staxml, areSimilarSensor)
+    print "Logger Check"
+    matchLogger = checkRespInNRL("%s/dataloggers"%(nrlDir,), staxml, areSimilarLogger, loggerRateIndex)
+#    loggerRateIndex = loadRespfileSampleRate('rt130_logger_samp_rate.sort')
+#    matchLogger = checkNRL("nrl_rt130/dataloggers", staxml, areSimilarLogger, loggerRateIndex)
+    return (matchSensor, matchLogger)
+
 
 def main():
     args = sys.argv[1:]
@@ -363,17 +375,7 @@ def main():
         print "Can't find file %s"%(args[0],)
         return
     staxml = sisxmlparser.parse(args[0])
-    loggerRateIndex = loadRespfileSampleRate('logger_samp_rate.sort')
-    print "loggerRateIndex has %d entries"%(len(loggerRateIndex,))
-
-
-    print "Sensor Check"
-    matchSensor = checkNRL("nrl/sensors", staxml, areSimilarSensor)
-    print "Logger Check"
-    matchLogger = checkNRL("nrl/dataloggers", staxml, areSimilarLogger, loggerRateIndex)
-#    loggerRateIndex = loadRespfileSampleRate('rt130_logger_samp_rate.sort')
-#    matchLogger = checkNRL("nrl_rt130/dataloggers", staxml, areSimilarLogger, loggerRateIndex)
-
+    (matchSensor, matchLogger) = checkNRL("nrl", staxml)
 
     for n in staxml.Network:
       for s in n.Station:
