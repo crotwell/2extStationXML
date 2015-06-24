@@ -2,6 +2,7 @@
 '''
 use the classes in sisxmlparser2_0 to generate an ExtStationXML file from regular stationxml.
 '''
+import checkNRL as checkNRL
 import sisxmlparser2_0 as sisxmlparser
 import datetime 
 import sys
@@ -37,6 +38,10 @@ def main():
 # StationType, ChannelType, GainType, and ResponseType
         rootobj.settype('sis:RootType')
 
+# find responses that look like they came from the NRL
+        matchSensor, matchLogger = checkNRL.checkNRL("nrl", rootobj)
+
+
         for n in rootobj.Network:
           n.settype('sis:NetworkType')
 #          print "%s %s"%(n.code, n.getattr('xsi:type'))
@@ -52,22 +57,40 @@ def main():
                 allChanCodes[key] = []
               allChanCodes[key].append(c)
               if c.Response != None:
-                 print "       %d stages"%(len(c.Response.Stage),)
-                 for stage in c.Response.Stage:
-                   if hasattr(stage, 'PolesZeros'):
-                     print "pz"
-                   elif hasattr(stage, 'Coefficients'):
-                     print "coef"
-                   elif hasattr(stage, 'FIR'):
-                     print "fir"
-                   elif hasattr(stage, 'Polynomial'):
-                     print "poly"
-                   elif hasattr(stage, 'Decimation'):
-                     print "dec"
-                   elif hasattr(stage, 'StageGain'):
-                     print "gain"
-                   else:
-                     print "other resp "
+                 chanCodeId = checkNRL.getChanCodeId(n, s, c)
+                 if chanCodeId in matchSensor:
+                    if len(matchSensor[chanCodeId]) > 1:
+                       print "WARNING: %s has more than one matching sensor, using first"
+                    c.Response = sisxmlparser.SISResponseType()
+                    c.Response.SubResponse = []
+                    sensorSubResponse = sisxmlparser.SubResponseType()
+                    sensorSubResponse.sequenceNumber = 1
+                    sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
+                    sensorSubResponse.RESPFile.stageFrom = 1
+                    sensorSubResponse.RESPFile.stageTo = 1
+                    sensorSubResponse.RESPFile.ValueOf = matchSensor[chanCodeId]
+                    c.Response.SubResponse.append(sisxmlparser.SubResponseType())
+
+
+
+                    
+                 if hasattr(c.Response ,'Stage'):
+                   print "       %d stages"%(len(c.Response.Stage),)
+                   for stage in c.Response.Stage:
+                     if hasattr(stage, 'PolesZeros'):
+                       print "pz"
+                     elif hasattr(stage, 'Coefficients'):
+                       print "coef"
+                     elif hasattr(stage, 'FIR'):
+                       print "fir"
+                     elif hasattr(stage, 'Polynomial'):
+                       print "poly"
+                     elif hasattr(stage, 'Decimation'):
+                       print "dec"
+                     elif hasattr(stage, 'StageGain'):
+                       print "gain"
+                     else:
+                       print "other resp "
 
             print "all chan codes: %d"%(len(allChanCodes))
             for key, epochList in allChanCodes.iteritems():
