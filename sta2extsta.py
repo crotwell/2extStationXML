@@ -11,6 +11,8 @@ USAGE_TEXT = """
 Usage: python <Parser>.py <in_xml_file>
 """
 
+NRL_PREFIX = "http://ds.iris.edu/NRL"
+
 def usage():
     print USAGE_TEXT
     sys.exit(1)
@@ -58,18 +60,26 @@ def main():
               allChanCodes[key].append(c)
               if c.Response != None:
                  chanCodeId = checkNRL.getChanCodeId(n, s, c)
+                 print dir(c)
                  if chanCodeId in matchSensor:
                     if len(matchSensor[chanCodeId]) > 1:
                        print "WARNING: %s has more than one matching sensor, using first"
                     c.Response = sisxmlparser.SISResponseType()
-                    c.Response.SubResponse = []
                     sensorSubResponse = sisxmlparser.SubResponseType()
                     sensorSubResponse.sequenceNumber = 1
                     sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
                     sensorSubResponse.RESPFile.stageFrom = 1
                     sensorSubResponse.RESPFile.stageTo = 1
-                    sensorSubResponse.RESPFile.ValueOf = matchSensor[chanCodeId]
-                    c.Response.SubResponse.append(sisxmlparser.SubResponseType())
+                    sensorSubResponse.RESPFile.ValueOf = matchSensor[chanCodeId][0].replace("nrl", NRL_PREFIX)
+
+                    loggerSubResponse = sisxmlparser.SubResponseType()
+                    loggerSubResponse.sequenceNumber = 2
+                    loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
+                    loggerSubResponse.RESPFile.stageFrom = 2
+                    loggerSubResponse.RESPFile.stageTo = -1
+                    loggerSubResponse.RESPFile.ValueOf = matchLogger[chanCodeId][0].replace("nrl", NRL_PREFIX)
+
+                    c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
 
 
 
