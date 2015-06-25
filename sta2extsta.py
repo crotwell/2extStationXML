@@ -83,24 +83,6 @@ def main():
 
 
                     
-                 if hasattr(c.Response ,'Stage'):
-                   print "       %d stages"%(len(c.Response.Stage),)
-                   for stage in c.Response.Stage:
-                     if hasattr(stage, 'PolesZeros'):
-                       print "pz"
-                     elif hasattr(stage, 'Coefficients'):
-                       print "coef"
-                     elif hasattr(stage, 'FIR'):
-                       print "fir"
-                     elif hasattr(stage, 'Polynomial'):
-                       print "poly"
-                     elif hasattr(stage, 'Decimation'):
-                       print "dec"
-                     elif hasattr(stage, 'StageGain'):
-                       print "gain"
-                     else:
-                       print "other resp "
-
             print "all chan codes: %d"%(len(allChanCodes))
             for key, epochList in allChanCodes.iteritems():
               epochList.sort(key=getStartDate)
