@@ -60,7 +60,6 @@ def main():
               allChanCodes[key].append(c)
               if c.Response != None:
                  chanCodeId = checkNRL.getChanCodeId(n, s, c)
-                 print dir(c)
                  if chanCodeId in matchSensor:
                     if len(matchSensor[chanCodeId]) > 1:
                        print "WARNING: %s has more than one matching sensor, using first"
