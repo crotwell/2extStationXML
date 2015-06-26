@@ -4,7 +4,10 @@ use the classes in sisxmlparser2_0 to generate an ExtStationXML file from regula
 '''
 import checkNRL as checkNRL
 import sisxmlparser2_0 as sisxmlparser
+
+import argparse
 import datetime 
+import dateutil.parser
 import sys
 
 USAGE_TEXT = """
@@ -20,12 +23,48 @@ def usage():
 def getStartDate(channel):
   return channel.startDate
 
+def initArgParser():
+  parser = argparse.ArgumentParser(description='Convert StationXML to ExtendedStationXML.')
+  parser.add_argument('-s', '--stationxml')
+  parser.add_argument('--nrl', help="replace matching responses with links to NRL")
+  parser.add_argument('--namedresp', nargs=1, help="directory of RESP files for reuse")
+  parser.add_argument('--delcurrent', action="store_true", help="remove channels that are currently operating")
+  parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
+  return parser.parse_args()
+
+def fixResponseNRL(n, s, c, matchSensor, matchLogger):
+  if c.Response != None:
+     chanCodeId = checkNRL.getChanCodeId(n, s, c)
+     if chanCodeId in matchSensor and chanCodeId in matchLogger:
+        # would be nice to replace sensor or logger indepenently, but...
+        if len(matchSensor[chanCodeId]) > 1:
+           print "WARNING: %s has more than one matching sensor, using first"
+        c.Response = sisxmlparser.SISResponseType()
+        sensorSubResponse = sisxmlparser.SubResponseType()
+        sensorSubResponse.sequenceNumber = 1
+        sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
+        sensorSubResponse.RESPFile.stageFrom = 1
+        sensorSubResponse.RESPFile.stageTo = 1
+        sensorSubResponse.RESPFile.ValueOf = matchSensor[chanCodeId][0].replace("nrl", NRL_PREFIX)
+
+        if len(matchLogger[chanCodeId]) > 1:
+           print "WARNING: %s has more than one matching logger, using first"
+        loggerSubResponse = sisxmlparser.SubResponseType()
+        loggerSubResponse.sequenceNumber = 2
+        loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
+        loggerSubResponse.RESPFile.stageFrom = 2
+        loggerSubResponse.RESPFile.stageTo = -1
+        loggerSubResponse.RESPFile.ValueOf = matchLogger[chanCodeId][0].replace("nrl", NRL_PREFIX)
+
+        c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
+
+
 def main():
-    args = sys.argv[1:]
-    if len(args) == 1:
+    parseArgs = initArgParser()
+    if parseArgs.stationxml:
 
         # Parse an xml file
-        rootobj = sisxmlparser.parse(args[0])
+        rootobj = sisxmlparser.parse(parseArgs.stationxml)
 
         rootobj.schemaVersion='1.0',
         rootobj.Source='SCSN-CA',
@@ -40,8 +79,13 @@ def main():
 # StationType, ChannelType, GainType, and ResponseType
         rootobj.settype('sis:RootType')
 
-# find responses that look like they came from the NRL
-        matchSensor, matchLogger = checkNRL.checkNRL("nrl", rootobj)
+        if parseArgs.nrl:
+            # find responses that look like they came from the NRL
+            matchSensor, matchLogger = checkNRL.checkNRL("nrl", rootobj)
+        else:
+            print "Skipping NRL match..."
+            matchSensor = []
+            matchLogger = []
 
 
         for n in rootobj.Network:
@@ -53,36 +97,17 @@ def main():
             allChanCodes = {}
             for c in s.Channel:
               print "    %s.%s "%(c.locationCode, c.code,)
-#              print "    %s.%s "%(c.getattr('locationCode'), c.code,)
-              key = "%s.%s"%(c.locationCode, c.code)
-              if not key in allChanCodes:
-                allChanCodes[key] = []
-              allChanCodes[key].append(c)
-              if c.Response != None:
-                 chanCodeId = checkNRL.getChanCodeId(n, s, c)
-                 if chanCodeId in matchSensor:
-                    if len(matchSensor[chanCodeId]) > 1:
-                       print "WARNING: %s has more than one matching sensor, using first"
-                    c.Response = sisxmlparser.SISResponseType()
-                    sensorSubResponse = sisxmlparser.SubResponseType()
-                    sensorSubResponse.sequenceNumber = 1
-                    sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
-                    sensorSubResponse.RESPFile.stageFrom = 1
-                    sensorSubResponse.RESPFile.stageTo = 1
-                    sensorSubResponse.RESPFile.ValueOf = matchSensor[chanCodeId][0].replace("nrl", NRL_PREFIX)
+              if c.endDate > datetime.datetime.now() and parseArgs.delcurrent:
+                 print "channel ends after now %s "%(checkNRL.getChanCodeId(n,s,c),)
+                 s.Channel.remove(c)
+              else:
+#                print "    %s.%s "%(c.getattr('locationCode'), c.code,)
+                key = "%s.%s"%(c.locationCode, c.code)
+                if not key in allChanCodes:
+                  allChanCodes[key] = []
+                allChanCodes[key].append(c)
+                fixResponseNRL(n, s, c, matchSensor, matchLogger)
 
-                    loggerSubResponse = sisxmlparser.SubResponseType()
-                    loggerSubResponse.sequenceNumber = 2
-                    loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
-                    loggerSubResponse.RESPFile.stageFrom = 2
-                    loggerSubResponse.RESPFile.stageTo = -1
-                    loggerSubResponse.RESPFile.ValueOf = matchLogger[chanCodeId][0].replace("nrl", NRL_PREFIX)
-
-                    c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
-
-
-
-                    
             print "all chan codes: %d"%(len(allChanCodes))
             for key, epochList in allChanCodes.iteritems():
               epochList.sort(key=getStartDate)
@@ -90,8 +115,7 @@ def main():
             
 
 # Finally after the instance is built export it. 
-        out = open("%s.%s"%(args[0], "extstaxml"), 'w')
-        rootobj.exportxml(out, 'FDSNStationXML', 'fsx', 0)
+        rootobj.exportxml(parseArgs.outfile, 'FDSNStationXML', 'fsx', 0)
 #        rootobj.exportxml(sys.stdout, 'FDSNStationXML', 'fsx', 0)
 
 
