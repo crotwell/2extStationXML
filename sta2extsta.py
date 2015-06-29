@@ -32,31 +32,43 @@ def initArgParser():
   parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
   return parser.parse_args()
 
+def convertToResponseDict(fdsnResponse):
+    respDict = sisxmlparser.ResponseDict()
+    respDict.FilterSequence = sisxmlparser.FilterSequenceType()
+    
+
+def knownResponse(response, knownResponses):
+    for name, kr  in knownResponses:
+        if areSame(response
+
 def fixResponseNRL(n, s, c, matchSensor, matchLogger):
   if c.Response != None:
      chanCodeId = checkNRL.getChanCodeId(n, s, c)
-     if chanCodeId in matchSensor and chanCodeId in matchLogger:
-        # would be nice to replace sensor or logger indepenently, but...
-        if len(matchSensor[chanCodeId]) > 1:
+     sensorSubResponse = sisxmlparser.SubResponseType()
+     sensorSubResponse.sequenceNumber = 1
+     loggerSubResponse = sisxmlparser.SubResponseType()
+     loggerSubResponse.sequenceNumber = 2
+     if chanCodeId in matchSensor:
+         if len(matchSensor[chanCodeId]) > 1:
            print "WARNING: %s has more than one matching sensor, using first"
-        c.Response = sisxmlparser.SISResponseType()
-        sensorSubResponse = sisxmlparser.SubResponseType()
-        sensorSubResponse.sequenceNumber = 1
-        sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
-        sensorSubResponse.RESPFile.stageFrom = 1
-        sensorSubResponse.RESPFile.stageTo = 1
-        sensorSubResponse.RESPFile.ValueOf = matchSensor[chanCodeId][0].replace("nrl", NRL_PREFIX)
+         c.Response = sisxmlparser.SISResponseType()
+         sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
+         sensorSubResponse.RESPFile.stageFrom = 1
+         sensorSubResponse.RESPFile.stageTo = 1
+         sensorSubResponse.RESPFile.ValueOf = matchSensor[chanCodeId][0][0].replace("nrl", NRL_PREFIX)
+     else:
+         sensorSubResponse.se
 
-        if len(matchLogger[chanCodeId]) > 1:
-           print "WARNING: %s has more than one matching logger, using first"
-        loggerSubResponse = sisxmlparser.SubResponseType()
-        loggerSubResponse.sequenceNumber = 2
-        loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
-        loggerSubResponse.RESPFile.stageFrom = 2
-        loggerSubResponse.RESPFile.stageTo = -1
-        loggerSubResponse.RESPFile.ValueOf = matchLogger[chanCodeId][0].replace("nrl", NRL_PREFIX)
+     if chanCodeId in matchLogger:
+         if len(matchLogger[chanCodeId]) > 1:
+             print "WARNING: %s has more than one matching logger, using first"
+         loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
+         print "tuple: %s"%(matchLogger[chanCodeId][0],)
+         loggerSubResponse.RESPFile.stageFrom = matchLogger[chanCodeId][0][2]
+         loggerSubResponse.RESPFile.stageTo = -1
+         loggerSubResponse.RESPFile.ValueOf = matchLogger[chanCodeId][0][0].replace("nrl", NRL_PREFIX)
 
-        c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
+     c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
 
 
 def main():

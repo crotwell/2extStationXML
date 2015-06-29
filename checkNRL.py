@@ -20,6 +20,9 @@ Usage: python <Parser>.py <in_xml_file>
 
 TYPE = "type"
 
+def setVerbose(b):
+    VERBOSE = b
+
 def usage():
     print USAGE_TEXT
     sys.exit(1)
@@ -128,29 +131,37 @@ def findRespBlockette(blockette, stage, blocketteType):
     if VERBOSE: print "can't find b%s for stage %s"%(blocketteType, stage)
     return None
 
+def checkStringEqual(reason, valA, valB):
+    if valA == valB:
+       return True, "ok"
+    else:
+       return False, reason
+
 def checkIntEqual(reason, valA, valB):
     if valA == valB:
-       return True,
+       return True, "ok"
     else:
        return False, reason
 
 def checkFloatEqual(reason, valA, valB, tolPercent):
     #print "check float %s, %f, %f, < %f"%(reason, valA, valB, tolPercent)
     if valA == 0.0 and valB == 0:
-       return True,
+       return True, "ok"
     if abs((valA - valB)/valA) < tolPercent:
-       return True,
+       return True, "ok"
     else:
        return False, reason
 
 
 def checkItem(item):
-    #print "check %s"%(item,)
+    if VERBOSE: print "check %s"%(item,)
     result = (False, "do not know how to check %s"%(item,))
     if len(item) == 4 and isinstance(item[1], (int,float)) and isinstance(item[2], (int,float)):
         result = checkFloatEqual(item[0], item[1], item[2], item[3])
     elif len(item) == 3 and isinstance(item[1], int) and isinstance(item[2], int):
         result = checkIntEqual(item[0], item[1], item[2])
+    elif len(item) == 3 and isinstance(item[1], basestring) and isinstance(item[2], basestring):
+        result = checkStringEqual(item[0], item[1], item[2])
     else:
         raise Exception("unknown check tuple %s"%(item,))
     if VERBOSE and not result[0]: print "Fail item %s -> %s"%(item, result)
@@ -161,7 +172,7 @@ def checkMultiple(list):
       result = checkItem(item)
       if not result[0]:
         return result
-    return (True,)
+    return (True, "ok")
 
 def areSimilarStageB53(staxml, resp):
     result = (False, "can't file blockette to match %s"%(resp[TYPE],))
@@ -236,9 +247,13 @@ def areSimilarSensor(staxmlResp, nrlResp):
        result = areSimilarStageB58(staxmlResp.Stage[0], b58)
     else:
        result = False,"blockette58 not found"
-    return result
+    return (result[0], result[1], 1, 1)
 
 def areSimilarLogger(staxmlResp, nrlResp):
+    '''
+    returns (False, reason)
+    returns (True, reason, staxml stage begin, nrl stage begin)
+    '''
     atodStageStaxml = 0
     atodStageNRL = 3 # I think Mary always uses 3 as A to D stage
     for staxmlStage in staxmlResp.Stage:
@@ -251,10 +266,11 @@ def areSimilarLogger(staxmlResp, nrlResp):
     if not result[0]:
         return result
     preampStageNRL = atodStageNRL - 1
+    preampStageStaxml = atodStageStaxml - 1
     if VERBOSE: print "preamp logger stage is %d"%(preampStageNRL,)
     b58 = findRespBlockette(nrlResp, preampStageNRL, '058')
     if b58 is not None:
-        result = areSimilarStageB58(staxmlResp.Stage[preampStageNRL-1], b58)
+        result = areSimilarStageB58(staxmlResp.Stage[preampStageStaxml-1], b58)
         if not result[0]:
             return False,"preamp stage %s: %s"%(preampStageNRL, result[1])
     else:
@@ -288,7 +304,7 @@ def areSimilarLogger(staxmlResp, nrlResp):
             b58 = findRespBlockette(nrlResp, loggerStage, '058')
         if b54 is None and len(staxmlResp.Stage) > loggerStage:
             return False,"more stages in staxml than in resp %d > %d"%(len(staxmlResp.Stage), loggerStage)
-    return result
+    return (result[0], result[1],  preampStageStaxml,  preampStageNRL )
 
 def printBlockettes(r):
     for b in r:
@@ -338,7 +354,7 @@ def checkRespInNRL(nrlDir, staxml, areSimilarFunc, loggerRateIndex = None):
                     if VERBOSE: print "%s found match %s"%(chanCode, respfile,)
                     if not chanCode in matchDict:
                         matchDict[chanCode] = []
-                    matchDict[chanCode].append(os.path.join(root, respfile))
+                    matchDict[chanCode].append( ( os.path.join(root, respfile), result[2], result[3] ) )
                   else:
                     if VERBOSE: print "FAIL %s match %s: %s"%(chanCode, respfile, result[1])
     return matchDict
@@ -386,14 +402,14 @@ def main():
             if len(matchSensor[chanCode]) > 1 :
               print "  %s MultipleMatch %d  ##############"%(chanCode, len(matchSensor[chanCode]),)
             for rf in matchSensor[chanCode]:
-              print "  sensor: %s"%(rf,)
+              print "  sensor: %s"%(rf[0],)
           else:
             print "  no sensor match found"
           if chanCode in matchLogger and len(matchLogger[chanCode])>0:
             if len(matchLogger[chanCode]) > 1 :
               print "  %s MultipleMatch %d  ##############"%(chanCode, len(matchLogger[chanCode]),)
             for rf in matchLogger[chanCode]:
-              print "  logger: %s"%(rf,)
+              print "  logger: %s"%(rf[0],)
           else:
             print "  no logger match found"
  
