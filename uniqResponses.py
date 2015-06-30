@@ -10,14 +10,18 @@ import os
 import re
 import sys
 
+VERBOSE=False
+
+def setVerbose(b):
+    VERBOSE = b
 
 def areSameStageType(stageA, stageB):
     for t in ['PolesZeros', 'Coefficients', 'FIR', 'Polynomial']:
         booleanA = hasattr(stageA, t)
         booleanB = hasattr(stageB, t)
         if booleanA != booleanB:
-            return (False, "Not same stage type: %s, %b %b"%(t, booleanA, booleanB))
-        return True, "ok"
+            return (False, "Not same stage type: %s, %s %s"%(t, booleanA, booleanB))
+    return True, "ok"
 
 def samePolesZeros(pzA, pzB):
     zerosA = getattr(pzA, 'Zero', [])
@@ -57,16 +61,16 @@ def sameCoefficients(coefA, coefB):
          return result
     checklist = []
     for zi in range(len(numerA)):
-         checklist.append(("%d zero real"%(zi,), float(coefA.Numerator[zi].ValueOf), float(coefB.Numerator[zi].ValueOf), 0.001))
+         checklist.append(("%d numerator"%(zi,), float(coefA.Numerator[zi].ValueOf), float(coefB.Numerator[zi].ValueOf), 0.001))
     for pi in range(len(denomA)):
-         checklist.append(("%d pole real"%(pi,), float(coefA.Denominator[pi].ValueOf), float(coefB.Denominator[pi].ValueOf), 0.001))
+         checklist.append(("%d denominator"%(pi,), float(coefA.Denominator[pi].ValueOf), float(coefB.Denominator[pi].ValueOf), 0.001))
     result = checkNRL.checkMultiple(checklist)
     return result
  
     
 def sameFIR(firA, firB):
     result = checkNRL.checkMultiple( [
-        ('Symmetry', firA.Symmetry, firB.Symmetry)
+        ('Symmetry', firA.Symmetry, firB.Symmetry),
         ('len NumeratorCoefficient', len(firA.NumeratorCoefficient), len(firB.NumeratorCoefficient))
     ] )
     if not result[0]:
@@ -77,6 +81,34 @@ def sameFIR(firA, firB):
     result = checkNRL.checkMultiple(checklist)
     return result
 
+def sameDecimation(stageA, stageB):
+    booleanA = hasattr(stageA, 'Decimation')
+    booleanB = hasattr(stageB, 'Decimation')
+    if booleanA != booleanB:
+        return (False, "Not same stage %s: %s %s"%('Decimation', booleanA, booleanB))
+    if booleanA:
+        result = checkNRL.checkMultiple( [
+            ('InputSampleRate', stageA.Decimation.InputSampleRate.ValueOf, stageB.Decimation.InputSampleRate.ValueOf, 0.001),
+            ('Factor', stageA.Decimation.Factor, stageB.Decimation.Factor)
+            ] )
+        return result
+    else:
+        return True, "ok"
+
+def sameGain(stageA, stageB):
+    booleanA = hasattr(stageA, 'StageGain')
+    booleanB = hasattr(stageB, 'StageGain')
+    if booleanA != booleanB:
+        return (False, "Not same stage %s: %s %s"%('StageGain', booleanA, booleanB))
+    if booleanA:
+        result = checkNRL.checkMultiple( [
+            ('Value', stageA.StageGain.Value, stageB.StageGain.Value, 0.001),
+            ('Frequency', stageA.StageGain.Frequency, stageB.StageGain.Frequency, 0.001)
+            ] )
+        return result
+    else:
+        return True, "ok"
+
     
 
 def areSameStage(stageA, stageB):
@@ -84,27 +116,36 @@ def areSameStage(stageA, stageB):
     if not result[0]:
         return result
     if hasattr(stageA, 'PolesZeros'):
-        return samePolesZeros(stageA.PolesZeros, stageB.PolesZeros)
-    if hasattr(stageA, 'Coefficients'):
-        return sameCoefficients(stageA.Coefficients, stageB.Coefficients)
-    if hasattr(stageA, 'FIR'):
-        return sameFIR(stageA.FIR, stageB.FIR)
-    if hasattr(stageA, 'Polynomial'):
-        return False, "don't know how to do polynomial yet"
+        result = samePolesZeros(stageA.PolesZeros, stageB.PolesZeros)
+    elif hasattr(stageA, 'Coefficients'):
+        result = sameCoefficients(stageA.Coefficients, stageB.Coefficients)
+    elif hasattr(stageA, 'FIR'):
+        result = sameFIR(stageA.FIR, stageB.FIR)
+    elif hasattr(stageA, 'Polynomial'):
+        result = False, "don't know how to do polynomial yet"
+    if not result[0]:
+        return result
+    result = sameDecimation(stageA, stageB)
+    if not result[0]:
+        return result
+    return sameGain(stageA, stageB)
+    
 
-    return False, "unknown stage type: %s"%(stageA,)
 
 def areSameResponse(respA, respB):
-    print "areSameResponse: "
-    result = checkNRL.checkIntEqual("num stages", len(respA.Stage), len(respB.Stage))
+    stageA = getattr(respA, 'Stage', [])
+    stageB = getattr(respB, 'Stage', [])
+    if VERBOSE: print "areSameResponse: "
+    result = checkNRL.checkIntEqual("num stages", len(stageA), len(stageB))
     if not result[0]:
-        print "not same num stages %s %s %d %d"%(result[0], result[1], len(respA.Stage), len(respB.Stage))
+        if VERBOSE: print "not same num stages %s %s %d %d"%(result[0], result[1], len(stageA), len(stageB))
         return result
-    for i in range(0, len(respA.Stage)):
-        print i
+    for i in range(0, len(stageA)):
         result = areSameStage(respA.Stage[i], respB.Stage[i])
         if not result[0]:
-            return False, "Stage %d %s"%(i+1,result[1])
+            result = False, "Stage %d %s"%(i+1,result[1])
+            if VERBOSE: print result[0]
+            return result
     return True, "ok"
 
 def uniqueResponses(staxml):
@@ -115,10 +156,17 @@ def uniqueResponses(staxml):
           chanCode = checkNRL.getChanCodeId(n, s, c)
           foundMatch = None
           print
-          print "chanCode %s numStage = %d"%(chanCode, len(c.Response.Stage),)
+          print "chanCode %s "%(chanCode, )
+#          print "chanCode %s numStage = %d"%(chanCode, len(c.Response.Stage),)
           for uResp in uniqResponse:
+#              try:
               result = areSameResponse(c.Response, uResp[1])
-              print "areSame %s: %s"%(result[0], result[1],)
+#              except:
+#                e =  sys.exc_info()[0]
+#                print "Error comparing %s, %s"%(uResp[0], e)
+#                result = False, " %s"%(e,)
+#                return
+              if VERBOSE: print "areSame %s: %s"%(result[0], result[1],)
               if result[0]:
                   foundMatch = uResp
                   break
@@ -146,9 +194,11 @@ def main():
     staxml = sisxmlparser.parse(args[0])
     uniq = uniqueResponses(staxml)
     numChans = 0
-    print "found %d uniq responses for %d channels"%(len(uniq), numChans)
+    print "found %d uniq responses "%(len(uniq), )
     for x in uniq:
-        print "%s  %s"%(x[0], x[2])
+      for xc in x[2]:
+        sys.stdout.write("%s "%(xc,))
+      print ""
 
 if __name__ == '__main__':
     main()

@@ -135,13 +135,13 @@ def checkStringEqual(reason, valA, valB):
     if valA == valB:
        return True, "ok"
     else:
-       return False, reason
+       return False, "%s : '%s' != '%s'"%(reason, valA, valB)
 
 def checkIntEqual(reason, valA, valB):
     if valA == valB:
        return True, "ok"
     else:
-       return False, reason
+       return False, "%s: %d!=%d"%(reason, valA, valB)
 
 def checkFloatEqual(reason, valA, valB, tolPercent):
     #print "check float %s, %f, %f, < %f"%(reason, valA, valB, tolPercent)
@@ -150,7 +150,7 @@ def checkFloatEqual(reason, valA, valB, tolPercent):
     if abs((valA - valB)/valA) < tolPercent:
        return True, "ok"
     else:
-       return False, reason
+       return False, "%s %f != %f (tol %% %f)"%(reason, valA, valB, tolPercent)
 
 
 def checkItem(item):
@@ -313,7 +313,7 @@ def printBlockettes(r):
         print "  %s  %s"%(key, b[key])
 
 def getChanCodeId(n, s, c):
-        return "%s.%s.%s.%s (%s)"%(n.code, s.code, c.locationCode, c.code, c.startDate)
+        return "%s.%s.%s.%s_%s"%(n.code, s.code, c.locationCode, c.code, c.startDate.isoformat())
 
 def saveFinalSampRate(dataloggerDir):
     for root, dirs, files in os.walk(dataloggerDir):
