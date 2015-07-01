@@ -4,6 +4,7 @@ use the classes in sisxmlparser2_0 to generate an ExtStationXML file from regula
 '''
 import checkNRL as checkNRL
 import sisxmlparser2_0 as sisxmlparser
+import uniqResponses as uniqResponses
 
 import argparse
 import datetime 
@@ -37,41 +38,57 @@ def convertToResponseDict(fdsnResponse):
     respDict.FilterSequence = sisxmlparser.FilterSequenceType()
     
 
-def knownResponse(response, knownResponses):
-    for name, kr  in knownResponses:
-        if areSame(response
-
-def fixResponseNRL(n, s, c, matchSensor, matchLogger):
+def fixResponseNRL(n, s, c, uniqResponse, namespace):
   if c.Response != None:
      chanCodeId = checkNRL.getChanCodeId(n, s, c)
      sensorSubResponse = sisxmlparser.SubResponseType()
      sensorSubResponse.sequenceNumber = 1
      loggerSubResponse = sisxmlparser.SubResponseType()
      loggerSubResponse.sequenceNumber = 2
-     if chanCodeId in matchSensor:
-         if len(matchSensor[chanCodeId]) > 1:
-           print "WARNING: %s has more than one matching sensor, using first"
-         c.Response = sisxmlparser.SISResponseType()
-         sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
-         sensorSubResponse.RESPFile.stageFrom = 1
-         sensorSubResponse.RESPFile.stageTo = 1
-         sensorSubResponse.RESPFile.ValueOf = matchSensor[chanCodeId][0][0].replace("nrl", NRL_PREFIX)
-     else:
-         sensorSubResponse.se
 
-     if chanCodeId in matchLogger:
-         if len(matchLogger[chanCodeId]) > 1:
-             print "WARNING: %s has more than one matching logger, using first"
-         loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
-         print "tuple: %s"%(matchLogger[chanCodeId][0],)
-         loggerSubResponse.RESPFile.stageFrom = matchLogger[chanCodeId][0][2]
-         loggerSubResponse.RESPFile.stageTo = -1
-         loggerSubResponse.RESPFile.ValueOf = matchLogger[chanCodeId][0][0].replace("nrl", NRL_PREFIX)
 
+     c.Response = sisxmlparser.SISResponseType()
+     for prototypeChan, nanmedRespone, chanCodeList, sss, lll in uniqResponse:
+         for xcode in chanCodeList:
+             if xcode == chanCodeId:
+                 # found it
+                 # sensor ######
+                 if len(sss) == 0 :
+                     # not nrl, so use named response
+                     sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
+                     sensorSubResponse.ResponseDictLink.Name = "S_"+prototypeChan
+                     sensorSubResponse.ResponseDictLink.SISNamespace = namespace
+                     sensorSubResponse.ResponseDictLink.Type = 'PolesZeros'
+                 else:
+                     if len(sss) > 1:
+                       print "WARNING: %s has more than one matching sensor, using first"%(chanCodeId,)
+                     sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
+                     sensorSubResponse.RESPFile.stageFrom = 1
+                     sensorSubResponse.RESPFile.stageTo = 1
+                     sensorSubResponse.RESPFile.ValueOf = sss[0][0].replace("nrl", NRL_PREFIX)
+                 # datalogger #######
+                 if len(lll) == 0:
+                     # not nrl, so use named response
+                     loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
+                     loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
+                     loggerSubResponse.ResponseDictLink.SISNamespace = namespace
+                     loggerSubResponse.ResponseDictLink.Type = 'PolesZeros'
+                 else:
+                     if len(lll) > 1:
+                       print "WARNING: %s has more than one matching logger, using first"%(chanCodeId,)
+                     loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
+                     loggerSubResponse.RESPFile.stageFrom = lll[0][2]
+                     loggerSubResponse.RESPFile.stageTo = -1
+                     loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
+               
      c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
 
 
 def main():
+#################
+#  fix this #####
+    sisNamespace = "TESTING"
+#################
     parseArgs = initArgParser()
     if parseArgs.stationxml:
 
@@ -91,14 +108,10 @@ def main():
 # StationType, ChannelType, GainType, and ResponseType
         rootobj.settype('sis:RootType')
 
-        if parseArgs.nrl:
-            # find responses that look like they came from the NRL
-            matchSensor, matchLogger = checkNRL.checkNRL("nrl", rootobj)
-        else:
-            print "Skipping NRL match..."
-            matchSensor = []
-            matchLogger = []
-
+        loggerRateIndex = checkNRL.loadRespfileSampleRate('logger_samp_rate.sort')
+        uniqResponse = uniqResponses.uniqueResponses(rootobj)
+        uniqWithNRL = checkNRL.checkRespListInNRL(parseArgs.nrl, uniqResponse, loggerRateIndex=loggerRateIndex)
+        
 
         for n in rootobj.Network:
           n.settype('sis:NetworkType')
@@ -118,13 +131,66 @@ def main():
                 if not key in allChanCodes:
                   allChanCodes[key] = []
                 allChanCodes[key].append(c)
-                fixResponseNRL(n, s, c, matchSensor, matchLogger)
+                fixResponseNRL(n, s, c, uniqWithNRL, sisNamespace)
 
             print "all chan codes: %d"%(len(allChanCodes))
             for key, epochList in allChanCodes.iteritems():
               epochList.sort(key=getStartDate)
               print "%s %d %s %s"%(key, len(epochList), epochList[-1].startDate, epochList[-1].endDate)
             
+
+# add named non-NRL responses to hardwareResponse
+        if not hasattr(rootobj, "HardwareResponse"):
+            rootobj.HardwareResponse = sisxmlparser.HardwareResponseType()
+        if not hasattr(rootobj.HardwareResponse, "ResponseDictGroup"):
+            rootobj.HardwareResponse.ResponseDictGroup = []
+        respGroup = rootobj.HardwareResponse.ResponseDictGroup
+        for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqWithNRL:
+            if len(sss) == 0:
+                # add stage 1 as sensor
+                sensor = sisxmlparser.ResponseDictType()
+                if hasattr(namedResponse, "PolesZeros"):
+                    sensor.PolesZeros = namedResponse.PolesZeros
+                    sensor.PolesZeros.name = "S_"+prototypeChan
+                    sensor.PolesZeros.SISNamespace = sisNamespace 
+                else:
+                    print "WARNING: sensor response for %s doesnot have PolesZeros"%(prototypeChan,)
+                respGroup.append(sensor)
+            if len(lll) == 0:
+                # add later stages as logger
+                logger = sisxmlparser.ResponseDictType()
+                logger.FilterSequence = sisxmlparser.FilterSequenceType()
+                logger.FilterSequence.name = "s_"+prototypeChan
+                logger.FilterSequence.SISNamespace = sisNamespace 
+                logger.FilterSequence.FilterStage = []
+                for s in namedResponse.Stage[1:]:
+                   filterStage = sisxmlparser.FilterStageType()
+                   filterStage.SequenceNumber = s.number
+                   filterStage.Decimation = s.Decimation
+                   filterStage.Gain = s.StageGain
+                   filterStage.Filter = sisxmlparser.FilterIDType()
+                   filterStage.Filter.Name = "FS_%d_%s"%(s.number, prototypeChan)
+                   filterStage.Filter.SISNamespace = sisNamespace
+                   logger.FilterSequence.FilterStage.append(filterStage)
+                   rd = sisxmlparser.ResponseDictType()
+                   respGroup.append(rd)
+                   if hasattr(s, "PolesZeros"):
+                       filterStage.Filter.Type = "PolesZeros"
+                       rd.PolesZeros = s.PolesZeros
+                       rd.PolesZeros.name = "FS_%d_%s"%(s.number, prototypeChan)
+                       rd.Poles.Zeros.SISNamespace = sisNamespace
+                   if hasattr(s, "FIR"):
+                       filterStage.Filter.Type = "FIR"
+                       rd.FIR = s.FIR
+                       rd.FIR.name = "FS_%d_%s"%(s.number, prototypeChan)
+                       rd.FIR.SISNamespace = sisNamespace
+                   if hasattr(s, "Coefficients"):
+                       filterStage.Filter.Type = "Coefficients"
+                       rd.Coefficients = s.Coefficients
+                       rd.Coefficients.name = "FS_%d_%s"%(s.number, prototypeChan)
+                       rd.Coefficients.SISNamespace = sisNamespace
+                respGroup.append(logger)
+                  
 
 # Finally after the instance is built export it. 
         rootobj.exportxml(parseArgs.outfile, 'FDSNStationXML', 'fsx', 0)

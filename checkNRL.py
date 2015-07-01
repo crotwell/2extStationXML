@@ -190,7 +190,7 @@ def areSimilarStageB53(staxml, resp):
        for zi in range(len(zeros)):
              checklist.append(("%d zero real"%(zi,), float(zeros[zi].Real.ValueOf), float(resp['10-13'][zi][1]), 0.001))
              checklist.append(("%d zero imag"%(zi,), float(zeros[zi].Imaginary.ValueOf), float(resp['10-13'][zi][2]), 0.001))
-       for pi in range(len(staxml.PolesZeros.Pole)):
+       for pi in range(len(poles)):
              checklist.append(("%d pole real"%(pi,), float(poles[pi].Real.ValueOf), float(resp['15-18'][pi][1]), 0.001))
              checklist.append(("%d pole imag"%(pi,), float(poles[pi].Imaginary.ValueOf), float(resp['15-18'][pi][2]), 0.001))
        result = checkMultiple(checklist)
@@ -234,6 +234,8 @@ def areSimilarStageB58(staxml, resp):
     return result
 
 def areSimilarSensor(staxmlResp, nrlResp):
+    if not hasattr(staxmlResp, 'Stage'):
+        return False, "no Stage in staxml"
     stageNum = 1
     b53 = findRespBlockette(nrlResp, stageNum, '053')
     if b53 is not None:
@@ -256,6 +258,8 @@ def areSimilarLogger(staxmlResp, nrlResp):
     '''
     atodStageStaxml = 0
     atodStageNRL = 3 # I think Mary always uses 3 as A to D stage
+    if not hasattr(staxmlResp, 'Stage'):
+        return False, "no Stage in staxml"
     for staxmlStage in staxmlResp.Stage:
         if hasattr(staxmlStage, 'Coefficients'):
             if (staxmlStage.Coefficients.InputUnits.Name == 'V' or staxmlStage.Coefficients.InputUnits.Name == 'VOLTS') and staxmlStage.Coefficients.OutputUnits.Name == 'COUNTS':
@@ -275,35 +279,37 @@ def areSimilarLogger(staxmlResp, nrlResp):
             return False,"preamp stage %s: %s"%(preampStageNRL, result[1])
     else:
         return False,"Can't find b58 for preamp stage %d"%(preampStageNRL,)
-    loggerStage = atodStageNRL
-    b58 = findRespBlockette(nrlResp, loggerStage, '058')
+    loggerStageNRL = atodStageNRL
+    loggerStageStaxml = atodStageStaxml
+    b58 = findRespBlockette(nrlResp, loggerStageNRL, '058')
     if b58 is None:
-        result = False,"stage %s blockette58 not found"%(loggerStage,)
+        result = False,"stage %s blockette58 not found"%(loggerStageNRL,)
     else:
-        if VERBOSE: print "logger stage is %d"%(loggerStage,)
+        if VERBOSE: print "logger stage is %d"%(loggerStageNRL,)
         while b58 is not None:
             if b58 is not None:
-              result = areSimilarStageB58(staxmlResp.Stage[loggerStage-1], b58)
+              result = areSimilarStageB58(staxmlResp.Stage[loggerStageStaxml-1], b58)
               if not result[0]:
-                  return False,"stage %s: %s"%(loggerStage, result[1])
+                  return False,"stage %s: %s"%(loggerStageStaxml, result[1])
             else:
-              return False,"Can't find b58 for stage %d"%(loggerStage,)
-            b57 = findRespBlockette(nrlResp, loggerStage, '057')
+              return False,"Can't find b58 for stage %d"%(loggerStageNRL,)
+            b57 = findRespBlockette(nrlResp, loggerStageNRL, '057')
             if b57 is not None:
-              result = areSimilarStageB57(staxmlResp.Stage[loggerStage-1], b57)
+              result = areSimilarStageB57(staxmlResp.Stage[loggerStageStaxml-1], b57)
               if not result[0]:
-                  return False,"stage %s: %s"%(loggerStage, result[1])
+                  return False,"stage %s: %s"%(loggerStageNRL, result[1])
             else:
-              return False,"Can't find b57 for stage %d"%(loggerStage,)
-            b54 = findRespBlockette(nrlResp, loggerStage, '054')
+              return False,"Can't find b57 for stage %d"%(loggerStageNRL,)
+            b54 = findRespBlockette(nrlResp, loggerStageNRL, '054')
             if b54 is not None:
-              result = areSimilarStageB54(staxmlResp.Stage[loggerStage-1], b54)
+              result = areSimilarStageB54(staxmlResp.Stage[loggerStageStaxml-1], b54)
               if not result[0]:
-                  return False,"stage %s: %s"%(loggerStage, result[1])
-            loggerStage+=1
-            b58 = findRespBlockette(nrlResp, loggerStage, '058')
-        if b54 is None and len(staxmlResp.Stage) > loggerStage:
-            return False,"more stages in staxml than in resp %d > %d"%(len(staxmlResp.Stage), loggerStage)
+                  return False,"stage %s: %s"%(loggerStageNRL, result[1])
+            loggerStageNRL+=1
+            loggerStageStaxml+=1
+            b58 = findRespBlockette(nrlResp, loggerStageNRL, '058')
+        if b54 is None and len(staxmlResp.Stage) > loggerStageStaxml:
+            return False,"more stages in staxml than in resp %d > %d"%(len(staxmlResp.Stage), loggerStageStaxml)
     return (result[0], result[1],  preampStageStaxml,  preampStageNRL )
 
 def printBlockettes(r):
@@ -349,15 +355,56 @@ def checkRespInNRL(nrlDir, staxml, areSimilarFunc, loggerRateIndex = None):
               for s in n.Station:
                 for c in s.Channel:
                   chanCode = getChanCodeId(n, s, c)
-                  result = areSimilarFunc(c.Response, r)
-                  if result[0]:
-                    if VERBOSE: print "%s found match %s"%(chanCode, respfile,)
-                    if not chanCode in matchDict:
-                        matchDict[chanCode] = []
-                    matchDict[chanCode].append( ( os.path.join(root, respfile), result[2], result[3] ) )
-                  else:
-                    if VERBOSE: print "FAIL %s match %s: %s"%(chanCode, respfile, result[1])
+                  if hasattr(c, 'Response'):
+                    result = areSimilarFunc(c.Response, r)
+                    if result[0]:
+                      if VERBOSE: print "%s found match %s"%(chanCode, respfile,)
+                      if not chanCode in matchDict:
+                          matchDict[chanCode] = []
+                      matchDict[chanCode].append( ( os.path.join(root, respfile), result[2], result[3] ) )
+                    else:
+                      if VERBOSE: print "FAIL %s match %s: %s"%(chanCode, respfile, result[1])
     return matchDict
+
+def checkRespListInNRL(nrlDir, respList, loggerRateIndex = None):
+    '''
+    respList is list of tuples (name, response, chanCodeList)
+    return is list of tuples (name, response, chanCodeList, sensorNrlUrl, loggerNrlUrl)
+    where NRLurl is None if not a NRL response
+    '''
+    outList = []
+    for name, chanResp, chanCodeList in respList:
+        outList.append( [ name, chanResp, chanCodeList, [], [] ] )
+    if VERBOSE: print "walk %s"%(nrlDir,)
+    for root, dirs, files in os.walk("%s/sensors"%(nrlDir,)):
+      for respfile in files:
+        if respfile.startswith("RESP"): 
+            if VERBOSE: print "try %s"%(respfile,)
+            r = loadResp(os.path.join(root, respfile))
+            for respTuple in outList:
+                name, chanResp, chanCodeList, sss, lll = respTuple
+                resultSensor = areSimilarSensor(chanResp, r)
+                if resultSensor[0]:
+                  if VERBOSE: print "%s found Sensor match %s"%(name, respfile,)
+                  sss.append( ( os.path.join(root, respfile), resultSensor[2], resultSensor[3] ) )
+    for root, dirs, files in os.walk("%s/dataloggers"%(nrlDir,)):
+      for respfile in files:
+        if respfile.startswith("RESP"): 
+            if VERBOSE: print "try %s"%(respfile,)
+            r = None # delay loading until a samp rate match
+            for respTuple in outList:
+                name, chanResp, chanCodeList, sss, lll = respTuple
+                if respfile not in loggerRateIndex or c.SampleRate.ValueOf == loggerRateIndex[respfile]:
+                    if r is None:
+                        r = loadResp(os.path.join(root, respfile))
+                    resultLogger = areSimilarLogger(chanResp, r)
+                    if resultLogger[0]:
+                      if VERBOSE: print "%s found logger match %s"%(name, respfile,)
+                      lll.append( ( os.path.join(root, respfile), resultLogger[2], resultLogger[3] ) )
+                    else:
+                      if VERBOSE: print "FAIL %s match %s: %s"%(chanCode, respfile, result[1])
+    return outList
+
 
 def loadRespfileSampleRate(loggerSampFile):
     out = dict()

@@ -155,8 +155,7 @@ def uniqueResponses(staxml):
         for c in s.Channel:
           chanCode = checkNRL.getChanCodeId(n, s, c)
           foundMatch = None
-          print
-          print "chanCode %s "%(chanCode, )
+          if VERBOSE: print "chanCode %s "%(chanCode, )
 #          print "chanCode %s numStage = %d"%(chanCode, len(c.Response.Stage),)
           for uResp in uniqResponse:
 #              try:
@@ -172,10 +171,10 @@ def uniqueResponses(staxml):
                   break
           if foundMatch is None:
               uniqResponse.append( ( chanCode, c.Response, [ chanCode] ) ) 
-              print "no match %d"%(len(uniqResponse),)
+              if VERBOSE: print "no match %d"%(len(uniqResponse),)
           else:
               foundMatch[2].append(chanCode)
-              print "found match %s  %s"%(chanCode, foundMatch[0])
+              if VERBOSE: print "found match %s  %s"%(chanCode, foundMatch[0])
     return uniqResponse
 
 def usage():
@@ -183,7 +182,6 @@ def usage():
 
 
 def main():
-    checkNRL.setVerbose(True)
     args = sys.argv[1:]
     if len(args) == 0:
         usage()
@@ -192,12 +190,23 @@ def main():
         print "Can't find file %s"%(args[0],)
         return
     staxml = sisxmlparser.parse(args[0])
+    print "Find unique responses"
     uniq = uniqueResponses(staxml)
+    print "NRL check unique responses"
+    nrledUniq = checkNRL.checkRespListInNRL('nrl', uniq, 'logger_samp_rate.sort')
     numChans = 0
     print "found %d uniq responses "%(len(uniq), )
-    for x in uniq:
+    for x in nrledUniq:
       for xc in x[2]:
         sys.stdout.write("%s "%(xc,))
+      sys.stdout.write("  NRL: ")
+      sys.stdout.write("  Sensor: ")
+      for s in x[3]:
+        sys.stdout.write("%s "%(s,))
+      sys.stdout.write("  Logger: ")
+      for l in x[4]:
+        sys.stdout.write("%s "%(l,))
+     
       print ""
 
 if __name__ == '__main__':
