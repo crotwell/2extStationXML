@@ -26,9 +26,9 @@ def getStartDate(channel):
 
 def initArgParser():
   parser = argparse.ArgumentParser(description='Convert StationXML to ExtendedStationXML.')
-  parser.add_argument('-s', '--stationxml')
+  parser.add_argument('-s', '--stationxml', required=True)
   parser.add_argument('--nrl', help="replace matching responses with links to NRL")
-  parser.add_argument('--namedresp', nargs=1, help="directory of RESP files for reuse")
+  parser.add_argument('--namespace', default='Testing', help="SIS namespace to use, see http://anss-sis.scsn.org/sis/master/namespace/")
   parser.add_argument('--delcurrent', action="store_true", help="remove channels that are currently operating")
   parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
   return parser.parse_args()
@@ -46,7 +46,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
      loggerSubResponse = sisxmlparser.SubResponseType()
      loggerSubResponse.sequenceNumber = 2
 
-
+     oldResponse = c.Response
      c.Response = sisxmlparser.SISResponseType()
      for prototypeChan, nanmedRespone, chanCodeList, sss, lll in uniqResponse:
          for xcode in chanCodeList:
@@ -55,10 +55,14 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                  # sensor ######
                  if len(sss) == 0 :
                      # not nrl, so use named response
-                     sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
+                     sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType2()
                      sensorSubResponse.ResponseDictLink.Name = "S_"+prototypeChan
                      sensorSubResponse.ResponseDictLink.SISNamespace = namespace
                      sensorSubResponse.ResponseDictLink.Type = 'PolesZeros'
+                     sensorSubResponse.ResponseDictLink.Gain = sisxmlparser.SISGainType()
+                     sensorSubResponse.ResponseDictLink.Gain.Value = oldResponse.Stage[0].StageGain.Value
+                     sensorSubResponse.ResponseDictLink.Gain.Frequency = oldResponse.Stage[0].StageGain.Frequency
+
                  else:
                      if len(sss) > 1:
                        print "WARNING: %s has more than one matching sensor, using first"%(chanCodeId,)
@@ -72,7 +76,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                      loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
                      loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
                      loggerSubResponse.ResponseDictLink.SISNamespace = namespace
-                     loggerSubResponse.ResponseDictLink.Type = 'PolesZeros'
+                     loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
                  else:
                      if len(lll) > 1:
                        print "WARNING: %s has more than one matching logger, using first"%(chanCodeId,)
@@ -82,25 +86,49 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                      loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
                
      c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
+     if hasattr(c, 'Sensor'):
+         #sometimes equipment comment in Sensor.Type
+         if hasattr(c.Sensor, 'Type'):
+             if not hasattr(c, 'Comment'):
+                 c.Comment = []
+             comment = sisxmlparser.CommentType()
+             comment.Value = "Sensor.Type: "+c.Sensor.Type
+             c.Comment.append(comment)
+         del c.Sensor
 
+def toSISPolesZeros(pz):
+    sisPZ = sisxmlparser.SISPolesZerosType()
+    if hasattr(pz, 'Description'):
+        sisPZ.Description = pz.Description
+    sisPZ.InputUnits = pz.InputUnits
+    sisPZ.OutputUnits = pz.OutputUnits
+    sisPZ.PzTransferFunctionType = pz.PzTransferFunctionType
+    sisPZ.NormalizationFactor = pz.NormalizationFactor
+    sisPZ.NormalizationFrequency = pz.NormalizationFrequency
+    sisPZ.Zero = pz.Zero
+    sisPZ.Pole = pz.Pole
+    return sisPZ
 
 def main():
-#################
-#  fix this #####
     sisNamespace = "TESTING"
-#################
     parseArgs = initArgParser()
+    sisNamespace = parseArgs.namespace
     if parseArgs.stationxml:
 
         # Parse an xml file
         rootobj = sisxmlparser.parse(parseArgs.stationxml)
+        origModuleURI = rootobj.ModuleURI
 
         rootobj.schemaVersion='1.0',
-        rootobj.Source='SCSN-CA',
-        rootobj.Sender='SCSN-CA',
-        rootobj.Module='Based on output from IRIS WEB SERVICE: fdsnws-station | version: 1.0.5',
-        rootobj.ModuleURI='http://service.iris.edu/fdsnws/station/1/query?net=CI&sta=PASC&loc=00&cha=HHZ&starttime=2007-10-30T01:00:00&endtime=2013-07-19T10:59:27&level=response&format=xml&nodata=404',
-        rootobj.Created=datetime.datetime.strptime('2013-07-19 18:09:30', '%Y-%m-%d %H:%M:%S') 
+        rootobj.Source=parseArgs.namespace
+        rootobj.Sender=parseArgs.namespace
+        rootobj.Module='sta2extsta.py',
+        rootobj.ModuleURI='https://github.com/crotwell/2extStationXML',
+        rootobj.Created=datetime.datetime.now()
+
+        if not hasattr(rootobj, 'comments'):
+            rootobj.comments = []
+        rootobj.comments.append("From: "+origModuleURI)
 
 # Cannot use 'xsi:type' as an identifier which is how it is 
 # stored in the object. So a set function has been defined for this 
@@ -114,7 +142,6 @@ def main():
         
 
         for n in rootobj.Network:
-          n.settype('sis:NetworkType')
 #          print "%s %s"%(n.code, n.getattr('xsi:type'))
           print "%s %s"%(n.code, n.getattrxml())
           for s in n.Station:
@@ -153,7 +180,7 @@ def main():
                 # add stage 1 as sensor
                 sensor = sisxmlparser.ResponseDictType()
                 if hasattr(namedResponse.Stage[0], "PolesZeros"):
-                    sensor.PolesZeros = namedResponse.Stage[0].PolesZeros
+                    sensor.PolesZeros = toSISPolesZeros(namedResponse.Stage[0].PolesZeros)
                     sensor.PolesZeros.name = "S_"+prototypeChan
                     sensor.PolesZeros.SISNamespace = sisNamespace 
                 else:
@@ -178,17 +205,31 @@ def main():
                    rd = sisxmlparser.ResponseDictType()
                    if hasattr(s, "PolesZeros"):
                        filterStage.Filter.Type = "PolesZeros"
-                       rd.PolesZeros = s.PolesZeros
+                       rd.PolesZeros = toSISPolesZeros(s.PolesZeros)
                        rd.PolesZeros.name = "FS_%d_%s"%(s.number, prototypeChan)
                        rd.Poles.Zeros.SISNamespace = sisNamespace
                    if hasattr(s, "FIR"):
                        filterStage.Filter.Type = "FIR"
-                       rd.FIR = s.FIR
+                       rd.FIR = sisxmlparser.SISFIRType()
+                       if hasattr(s.FIR, 'Description'):
+                           rd.FIR.Description = s.FIR.Description
+                       rd.FIR.InputUnits = s.FIR.InputUnits
+                       rd.FIR.OutputUnits = s.FIR.OutputUnits
+                       rd.FIR.Symmetry = s.FIR.Symmetry
+                       rd.FIR.NumeratorCoefficient = s.FIR.NumeratorCoefficient
                        rd.FIR.name = "FS_%d_%s"%(s.number, prototypeChan)
                        rd.FIR.SISNamespace = sisNamespace
                    if hasattr(s, "Coefficients"):
                        filterStage.Filter.Type = "Coefficients"
-                       rd.Coefficients = s.Coefficients
+                       rd.Coefficients = sisxmlparser.SISCoefficientsType()
+                       if hasattr(s.Coefficients, 'Description'):
+                           rd.Coefficients.Description = s.Coefficients.Description
+                       rd.Coefficients.InputUnits = s.Coefficients.InputUnits
+                       rd.Coefficients.OutputUnits = s.Coefficients.OutputUnits
+                       rd.Coefficients.CfTransferFunctionType = s.Coefficients.CfTransferFunctionType
+                       rd.Coefficients.Numerator = s.Coefficients.Numerator
+                       if hasattr(s.Coefficients, "Denominator"):
+                           rd.Coefficients.Denominator = s.Coefficients.Denominator
                        rd.Coefficients.name = "FS_%d_%s"%(s.number, prototypeChan)
                        rd.Coefficients.SISNamespace = sisNamespace
                    respGroup.ResponseDict.append(rd)
