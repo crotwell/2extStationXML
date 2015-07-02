@@ -143,24 +143,27 @@ def main():
         if not hasattr(rootobj, "HardwareResponse"):
             rootobj.HardwareResponse = sisxmlparser.HardwareResponseType()
         if not hasattr(rootobj.HardwareResponse, "ResponseDictGroup"):
-            rootobj.HardwareResponse.ResponseDictGroup = []
+            rootobj.HardwareResponse.ResponseDictGroup = sisxmlparser.ResponseDictGroupType()
+        
         respGroup = rootobj.HardwareResponse.ResponseDictGroup
+        if not hasattr(rootobj.HardwareResponse.ResponseDictGroup, "ResponseDict"):
+            rootobj.HardwareResponse.ResponseDictGroup.ResponseDict = []
         for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqWithNRL:
             if len(sss) == 0:
                 # add stage 1 as sensor
                 sensor = sisxmlparser.ResponseDictType()
-                if hasattr(namedResponse, "PolesZeros"):
-                    sensor.PolesZeros = namedResponse.PolesZeros
+                if hasattr(namedResponse.Stage[0], "PolesZeros"):
+                    sensor.PolesZeros = namedResponse.Stage[0].PolesZeros
                     sensor.PolesZeros.name = "S_"+prototypeChan
                     sensor.PolesZeros.SISNamespace = sisNamespace 
                 else:
                     print "WARNING: sensor response for %s doesnot have PolesZeros"%(prototypeChan,)
-                respGroup.append(sensor)
+                respGroup.ResponseDict.append(sensor)
             if len(lll) == 0:
                 # add later stages as logger
                 logger = sisxmlparser.ResponseDictType()
                 logger.FilterSequence = sisxmlparser.FilterSequenceType()
-                logger.FilterSequence.name = "s_"+prototypeChan
+                logger.FilterSequence.name = "L_"+prototypeChan
                 logger.FilterSequence.SISNamespace = sisNamespace 
                 logger.FilterSequence.FilterStage = []
                 for s in namedResponse.Stage[1:]:
@@ -173,7 +176,6 @@ def main():
                    filterStage.Filter.SISNamespace = sisNamespace
                    logger.FilterSequence.FilterStage.append(filterStage)
                    rd = sisxmlparser.ResponseDictType()
-                   respGroup.append(rd)
                    if hasattr(s, "PolesZeros"):
                        filterStage.Filter.Type = "PolesZeros"
                        rd.PolesZeros = s.PolesZeros
@@ -189,7 +191,8 @@ def main():
                        rd.Coefficients = s.Coefficients
                        rd.Coefficients.name = "FS_%d_%s"%(s.number, prototypeChan)
                        rd.Coefficients.SISNamespace = sisNamespace
-                respGroup.append(logger)
+                   respGroup.ResponseDict.append(rd)
+                respGroup.ResponseDict.append(logger)
                   
 
 # Finally after the instance is built export it. 
