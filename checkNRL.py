@@ -254,7 +254,7 @@ def areSimilarSensor(staxmlResp, nrlResp):
 def areSimilarLogger(staxmlResp, nrlResp):
     '''
     returns (False, reason)
-    returns (True, reason, staxml stage begin, nrl stage begin)
+    returns (True, reason, staxml stage begin, nrl stage begin, nrl stage end)
     '''
     atodStageStaxml = 0
     atodStageNRL = 3 # I think Mary always uses 3 as A to D stage
@@ -310,7 +310,7 @@ def areSimilarLogger(staxmlResp, nrlResp):
             b58 = findRespBlockette(nrlResp, loggerStageNRL, '058')
         if b54 is None and len(staxmlResp.Stage) > loggerStageStaxml:
             return False,"more stages in staxml than in resp %d > %d"%(len(staxmlResp.Stage), loggerStageStaxml)
-    return (result[0], result[1],  preampStageStaxml,  preampStageNRL )
+    return (result[0], result[1],  preampStageStaxml,  preampStageNRL, loggerStageNRL-1 )
 
 def printBlockettes(r):
     for b in r:
@@ -400,7 +400,7 @@ def checkRespListInNRL(nrlDir, respList, loggerRateIndex = None):
                     resultLogger = areSimilarLogger(chanResp, r)
                     if resultLogger[0]:
                       if VERBOSE: print "%s found logger match %s"%(name, respfile,)
-                      lll.append( ( os.path.join(root, respfile), resultLogger[2], resultLogger[3] ) )
+                      lll.append( ( os.path.join(root, respfile), resultLogger[2], resultLogger[3], resultLogger[4] ) )
                     else:
                       if VERBOSE: print "FAIL %s match %s: %s"%(chanCode, respfile, result[1])
     return outList
@@ -414,6 +414,9 @@ def loadRespfileSampleRate(loggerSampFile):
     return out
 
 def checkNRL(nrlDir, staxml):
+    '''
+    obsolete, faster to check for unique responses first, then walk the nrl
+    '''
     loggerRateIndex = loadRespfileSampleRate('logger_samp_rate.sort')
     print "loggerRateIndex has %d entries"%(len(loggerRateIndex,))
 

@@ -29,6 +29,7 @@ def initArgParser():
   parser.add_argument('-s', '--stationxml', required=True)
   parser.add_argument('--nrl', help="replace matching responses with links to NRL")
   parser.add_argument('--namespace', default='Testing', help="SIS namespace to use, see http://anss-sis.scsn.org/sis/master/namespace/")
+  parser.add_argument('--operator', default='Testing', help="SIS operator to use for stations, see http://anss-sis.scsn.org/sis/master/org/")
   parser.add_argument('--delcurrent', action="store_true", help="remove channels that are currently operating")
   parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
   return parser.parse_args()
@@ -82,7 +83,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                        print "WARNING: %s has more than one matching logger, using first"%(chanCodeId,)
                      loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
                      loggerSubResponse.RESPFile.stageFrom = lll[0][2]
-                     loggerSubResponse.RESPFile.stageTo = -1
+                     loggerSubResponse.RESPFile.stageTo = lll[0][3]
                      loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
                
      c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
@@ -146,6 +147,12 @@ def main():
           print "%s %s"%(n.code, n.getattrxml())
           for s in n.Station:
             print "  %s   %s"%(s.code, s.getattrxml())
+            if not hasattr(s, 'Operator'):
+                s.Operator = []
+                sOp = sisxmlparser.OperatorType()
+                sOp.Agency = []
+                sOp.Agency.append(parseArgs.operator)
+                s.Operator.append(sOp)
             allChanCodes = {}
             for c in s.Channel:
               print "    %s.%s "%(c.locationCode, c.code,)
