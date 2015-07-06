@@ -106,8 +106,10 @@ def toSISPolesZeros(pz):
     sisPZ.PzTransferFunctionType = pz.PzTransferFunctionType
     sisPZ.NormalizationFactor = pz.NormalizationFactor
     sisPZ.NormalizationFrequency = pz.NormalizationFrequency
-    sisPZ.Zero = pz.Zero
-    sisPZ.Pole = pz.Pole
+    if hasattr(pz, 'Zero'):
+        sisPZ.Zero = pz.Zero
+    if hasattr(pz, 'Pole'):
+        sisPZ.Pole = pz.Pole
     return sisPZ
 
 def main():
