@@ -183,6 +183,7 @@ def main():
         if not hasattr(rootobj.HardwareResponse.ResponseDictGroup, "ResponseDict"):
             rootobj.HardwareResponse.ResponseDictGroup.ResponseDict = []
         for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqWithNRL:
+            if VERBOSE: print "add to hardware, prototype: "+prototypeChan
             if len(sss) == 0:
                 # add stage 1 as sensor
                 sensor = sisxmlparser.ResponseDictType()
@@ -203,8 +204,10 @@ def main():
                 for s in namedResponse.Stage[1:]:
                    filterStage = sisxmlparser.FilterStageType()
                    filterStage.SequenceNumber = s.number
-                   filterStage.Decimation = s.Decimation
-                   filterStage.Gain = s.StageGain
+                   if hasattr(s, "Decimation"):
+                       filterStage.Decimation = s.Decimation
+                   if hasattr(s, "StageGain"):
+                       filterStage.Gain = s.StageGain
                    filterStage.Filter = sisxmlparser.FilterIDType()
                    filterStage.Filter.Name = "FS_%d_%s"%(s.number, prototypeChan)
                    filterStage.Filter.SISNamespace = sisNamespace
@@ -234,7 +237,8 @@ def main():
                        rd.Coefficients.InputUnits = s.Coefficients.InputUnits
                        rd.Coefficients.OutputUnits = s.Coefficients.OutputUnits
                        rd.Coefficients.CfTransferFunctionType = s.Coefficients.CfTransferFunctionType
-                       rd.Coefficients.Numerator = s.Coefficients.Numerator
+                       if hasattr(s.Coefficients, "Numerator"):
+                           rd.Coefficients.Numerator = s.Coefficients.Numerator
                        if hasattr(s.Coefficients, "Denominator"):
                            rd.Coefficients.Denominator = s.Coefficients.Denominator
                        rd.Coefficients.name = "FS_%d_%s"%(s.number, prototypeChan)
