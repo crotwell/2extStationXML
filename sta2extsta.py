@@ -11,6 +11,8 @@ import datetime
 import dateutil.parser
 import sys
 
+VERBOSE = False
+
 USAGE_TEXT = """
 Usage: python <Parser>.py <in_xml_file>
 """
