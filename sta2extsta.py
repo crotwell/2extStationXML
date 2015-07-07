@@ -9,6 +9,8 @@ import uniqResponses as uniqResponses
 import argparse
 import datetime 
 import dateutil.parser
+import os
+import subprocess
 import sys
 
 VERBOSE = False
@@ -40,18 +42,32 @@ def convertToResponseDict(fdsnResponse):
     respDict = sisxmlparser.ResponseDict()
     respDict.FilterSequence = sisxmlparser.FilterSequenceType()
     
+def isOnlyGainStage(namedResponse, sNum):
+    for stage in namedResponse.Stage:
+       if stage.number == sNum:
+           break
+    if hasattr(stage, 'PolesZeros') or \
+       hasattr(stage, 'Coefficients') or \
+       hasattr(stage, 'ResponseList') or \
+       hasattr(stage, 'FIR') or \
+       hasattr(stage, 'Polynomial'):
+        return False
+    else:
+        return True
 
 def fixResponseNRL(n, s, c, uniqResponse, namespace):
   if c.Response != None:
      chanCodeId = checkNRL.getChanCodeId(n, s, c)
      sensorSubResponse = sisxmlparser.SubResponseType()
      sensorSubResponse.sequenceNumber = 1
+     preampSubResponse = sisxmlparser.SubResponseType()
+     preampSubResponse.sequenceNumber = 2
      loggerSubResponse = sisxmlparser.SubResponseType()
-     loggerSubResponse.sequenceNumber = 2
+     loggerSubResponse.sequenceNumber = 3
 
      oldResponse = c.Response
      c.Response = sisxmlparser.SISResponseType()
-     for prototypeChan, nanmedRespone, chanCodeList, sss, lll in uniqResponse:
+     for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqResponse:
          for xcode in chanCodeList:
              if xcode == chanCodeId:
                  # found it
@@ -70,12 +86,18 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                      if len(sss) > 1:
                        print "WARNING: %s has more than one matching sensor, using first"%(chanCodeId,)
                      sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
-                     sensorSubResponse.RESPFile.stageFrom = 1
-                     sensorSubResponse.RESPFile.stageTo = 1
                      sensorSubResponse.RESPFile.ValueOf = sss[0][0].replace("nrl", NRL_PREFIX)
+                     # stage To/From not required for NRL responses, use SIS rules
+                     #sensorSubResponse.RESPFile.stageFrom = 1
+                     #sensorSubResponse.RESPFile.stageTo = 1
                  # datalogger #######
                  if len(lll) == 0:
                      # not nrl, so use named response
+                     if isOnlyGainStage(namedResponse, 2):
+                         preampSubResponse.PreampGain = namedResponse.Stage[1].StageGain.Value
+                     else:
+                         preampSubResponse = None
+                         loggerSubResponse.sequenceNumber = 2
                      loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
                      loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
                      loggerSubResponse.ResponseDictLink.SISNamespace = namespace
@@ -84,11 +106,15 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                      if len(lll) > 1:
                        print "WARNING: %s has more than one matching logger, using first"%(chanCodeId,)
                      loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
-                     loggerSubResponse.RESPFile.stageFrom = lll[0][2]
-                     loggerSubResponse.RESPFile.stageTo = lll[0][3]
                      loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
+                     # stage To/From not required for NRL responses, use SIS rules
+                     #loggerSubResponse.RESPFile.stageFrom = lll[0][2]
+                     #loggerSubResponse.RESPFile.stageTo = lll[0][3]
                
-     c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
+     if preampSubResponse is None:
+         c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
+     else:
+         c.Response.SubResponse = [ sensorSubResponse, preampSubResponse, loggerSubResponse ]
      if hasattr(c, 'Sensor'):
          #sometimes equipment comment in Sensor.Type
          if hasattr(c.Sensor, 'Type'):
@@ -119,6 +145,34 @@ def main():
     parseArgs = initArgParser()
     sisNamespace = parseArgs.namespace
     if parseArgs.stationxml:
+
+        # validate with SIS validator
+        # http://maui.gps.caltech.edu/SIStrac/wiki/SIS/Code
+
+       
+        if os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') and os.path.exists('validator/ValidateStationXml.class'):
+            print "Validating xml..."
+            try:
+                validateOut = subprocess.check_output(['java', '-cp', 'validator:xerces-2_11_0-xml-schema-1.1-beta/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.', 'ValidateStationXml', '-i', parseArgs.stationxml])
+            except subprocess.CalledProcessError as e:
+                validateOut = e.output
+            if not validateOut == '0':
+                print "invalid stationxml document, errors: %s"%(validateOut,)
+                return
+        else:
+            print """
+Can't find validator: %s %s"%(os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') , os.path.exists('validator/ValidateStationXml.class'))
+            
+            wget http://mirror.cc.columbia.edu/pub/software/apache//xerces/j/binaries/Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
+            tar zxf Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
+            wget http://maui.gps.caltech.edu/SIStrac/raw-attachment/wiki/SIS/Code/validator.tar.gz
+            tar ztf validator.tar.gz
+
+We assume the directories validator and xerces-2_11_0-xml-schema-1.1-beta
+are in current directory for validation.
+            """
+          
+            return
 
         # Parse an xml file
         rootobj = sisxmlparser.parse(parseArgs.stationxml)
@@ -205,11 +259,16 @@ def main():
                 logger.FilterSequence.name = "L_"+prototypeChan
                 logger.FilterSequence.SISNamespace = sisNamespace 
                 logger.FilterSequence.FilterStage = []
-                for s in namedResponse.Stage[1:]:
+                loggerStartStage = 2
+                if isOnlyGainStage(namedResponse, 2):
+                    loggerStartStage = 3
+                for s in namedResponse.Stage[loggerStartStage : ]:
                    filterStage = sisxmlparser.FilterStageType()
                    filterStage.SequenceNumber = s.number
                    if hasattr(s, "Decimation"):
                        filterStage.Decimation = s.Decimation
+                   else:
+                       print "No decimation in %s stage %d but it is required"%(prototypeChan, s.number)
                    if hasattr(s, "StageGain"):
                        filterStage.Gain = s.StageGain
                    filterStage.Filter = sisxmlparser.FilterIDType()
@@ -221,8 +280,8 @@ def main():
                        filterStage.Filter.Type = "PolesZeros"
                        rd.PolesZeros = toSISPolesZeros(s.PolesZeros)
                        rd.PolesZeros.name = "FS_%d_%s"%(s.number, prototypeChan)
-                       rd.Poles.Zeros.SISNamespace = sisNamespace
-                   if hasattr(s, "FIR"):
+                       rd.PolesZeros.SISNamespace = sisNamespace
+                   elif hasattr(s, "FIR"):
                        filterStage.Filter.Type = "FIR"
                        rd.FIR = sisxmlparser.SISFIRType()
                        if hasattr(s.FIR, 'Description'):
@@ -233,7 +292,7 @@ def main():
                        rd.FIR.NumeratorCoefficient = s.FIR.NumeratorCoefficient
                        rd.FIR.name = "FS_%d_%s"%(s.number, prototypeChan)
                        rd.FIR.SISNamespace = sisNamespace
-                   if hasattr(s, "Coefficients"):
+                   elif hasattr(s, "Coefficients"):
                        filterStage.Filter.Type = "Coefficients"
                        rd.Coefficients = sisxmlparser.SISCoefficientsType()
                        if hasattr(s.Coefficients, 'Description'):
@@ -247,6 +306,8 @@ def main():
                            rd.Coefficients.Denominator = s.Coefficients.Denominator
                        rd.Coefficients.name = "FS_%d_%s"%(s.number, prototypeChan)
                        rd.Coefficients.SISNamespace = sisNamespace
+                   else:
+                       print "stage does not have PZ, FIR or Coef: %s stage %s   \n%s"%(prototypeChan, s.number, dir(s))
                    respGroup.ResponseDict.append(rd)
                 respGroup.ResponseDict.append(logger)
                   

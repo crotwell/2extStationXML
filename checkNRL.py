@@ -370,7 +370,8 @@ def checkRespListInNRL(nrlDir, respList, loggerRateIndex = None):
     '''
     respList is list of tuples (name, response, chanCodeList)
     return is list of tuples (name, response, chanCodeList, sensorNrlUrl, loggerNrlUrl)
-    where NRLurl is None if not a NRL response
+    where NRLurl is None if not a NRL response.
+    Sensor is assumed to be stage 1, Preamp is stage 2 and logger is stage 3 to end.
     '''
     outList = []
     for name, chanResp, chanCodeList in respList:
