@@ -161,7 +161,7 @@ def main():
                 return
         else:
             print """
-Can't find validator: %s %s"%(os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') , os.path.exists('validator/ValidateStationXml.class'))
+Can't find validator: %s %s
             
             wget http://mirror.cc.columbia.edu/pub/software/apache//xerces/j/binaries/Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
             tar zxf Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
@@ -170,7 +170,7 @@ Can't find validator: %s %s"%(os.path.exists('xerces-2_11_0-xml-schema-1.1-beta'
 
 We assume the directories validator and xerces-2_11_0-xml-schema-1.1-beta
 are in current directory for validation.
-            """
+            """%(os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') , os.path.exists('validator/ValidateStationXml.class'))
           
             return
 
