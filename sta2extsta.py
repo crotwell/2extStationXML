@@ -155,9 +155,10 @@ def main():
             try:
                 validateOut = subprocess.check_output(['java', '-cp', 'validator:xerces-2_11_0-xml-schema-1.1-beta/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.', 'ValidateStationXml', '-i', parseArgs.stationxml])
             except subprocess.CalledProcessError as e:
-                validateOut = e.output
+                validateOut = "error calling process: " + e.output
+            validateOut = validateOut.strip()
             if not validateOut == '0':
-                print "invalid stationxml document, errors: %s"%(validateOut,)
+                print "invalid stationxml document, errors: '%s'"%(validateOut,)
                 return
         else:
             print """
