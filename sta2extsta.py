@@ -67,6 +67,11 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
 
      oldResponse = c.Response
      c.Response = sisxmlparser.SISResponseType()
+     if oldResponse.InstrumentSensitivity != None:
+         c.Response.InstrumentSensitivity = oldResponse.InstrumentSensitivity
+     else:
+         # need to calculate overall sensitivity
+         print "WARNING: %s does not have InstrumentSensitivity, this is required in SIS."%(chanCodeId,)
      for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqResponse:
          for xcode in chanCodeList:
              if xcode == chanCodeId:
