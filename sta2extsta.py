@@ -201,7 +201,7 @@ are in current directory for validation.
 # StationType, ChannelType, GainType, and ResponseType
         rootobj.settype('sis:RootType')
 
-        loggerRateIndex = checkNRL.loadRespfileSampleRate('logger_samp_rate.sort')
+        loggerRateIndex = checkNRL.loadRespfileSampleRate(os.path.join(parseArgs.nrl, 'logger_sample_rate.sort'))
         uniqResponse = uniqResponses.uniqueResponses(rootobj)
         uniqWithNRL = checkNRL.checkRespListInNRL(parseArgs.nrl, uniqResponse, loggerRateIndex=loggerRateIndex)
         
