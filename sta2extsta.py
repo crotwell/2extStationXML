@@ -201,7 +201,13 @@ are in current directory for validation.
 # StationType, ChannelType, GainType, and ResponseType
         rootobj.settype('sis:RootType')
 
-        loggerRateIndex = checkNRL.loadRespfileSampleRate(os.path.join(parseArgs.nrl, 'logger_sample_rate.sort'))
+        spsIndex = os.path.join(parseArgs.nrl, "logger_sample_rate.sort")
+        if not os.path.exists(spsIndex):
+            print "can't fine sps index file for NRL. Should be logger_sample_rate.sort inside NRL directory"
+            print "python checkNRL.py --samplerate --nrl <path_to_nrl>"
+            return
+
+        loggerRateIndex = checkNRL.loadRespfileSampleRate(spsIndex)
         uniqResponse = uniqResponses.uniqueResponses(rootobj)
         uniqWithNRL = checkNRL.checkRespListInNRL(parseArgs.nrl, uniqResponse, loggerRateIndex=loggerRateIndex)
         
