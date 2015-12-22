@@ -6,6 +6,7 @@ Interact with the NRL and parse RESP files.
 
 import sisxmlparser2_0 as sisxmlparser
 
+import argparse
 import datetime 
 import os
 import re
@@ -321,7 +322,9 @@ def printBlockettes(r):
 def getChanCodeId(n, s, c):
         return "%s.%s.%s.%s_%s"%(n.code, s.code, c.locationCode, c.code, c.startDate.isoformat())
 
-def saveFinalSampRate(dataloggerDir):
+def saveFinalSampRate(nrlDir):
+    outfile = open(os.path.join(nrlDir, 'logger_sample_rate.sort'), 'w')
+    dataloggerDir = os.path.join(nrlDir, 'dataloggers')
     for root, dirs, files in os.walk(dataloggerDir):
       for respfile in files:
         if respfile.startswith("RESP"):
@@ -333,7 +336,7 @@ def saveFinalSampRate(dataloggerDir):
                     sampRate = b['04']
                     decFactor = b['05']
                     finalSampRate = float(sampRate)/int(decFactor)
-            print "%s %s"%(finalSampRate, os.path.join(root, respfile))
+            outfile.write("%s %s\n"%(finalSampRate, os.path.join(root, respfile)))
 
 def possibleSampRateMatch(respfile, staxml, loggerRateIndex):
     for n in staxml.Network:
@@ -431,18 +434,23 @@ def checkNRL(nrlDir, staxml):
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Check NRL, generate sample rate index.')
+    parser.add_argument('-s', '--stationxml', help="input FDSN StationXML file, often retrieved from http://service.iris.edu/fdsnws/station/1/")
+    parser.add_argument('--nrl', default='nrl', help="path to NRL")
+    parser.add_argument('--samplerate', action="store_true", help="Generate the sample rate index file inside the nrl directory.")
+    parseArgs = parser.parse_args()
     args = sys.argv[1:]
     if len(args) == 0:
         usage()
         return
-    if args[0] == '--samprate':
-        saveFinalSampRate('nrl/dataloggers')
+    if parseArgs.samplerate:
+        saveFinalSampRate(parseArgs.nrl)
         return
-    if not os.path.isfile(args[0]):
-        print "Can't find file %s"%(args[0],)
+    if not os.path.isfile(parseArgs.stationxml):
+        print "Can't find file %s"%(parseArgs.stationxml,)
         return
-    staxml = sisxmlparser.parse(args[0])
-    (matchSensor, matchLogger) = checkNRL("nrl", staxml)
+    staxml = sisxmlparser.parse(parseArgs.stationxml)
+    (matchSensor, matchLogger) = checkNRL(parseArgs.nrl, staxml)
 
     for n in staxml.Network:
       for s in n.Station:
