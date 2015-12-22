@@ -60,6 +60,7 @@ def _appendBlocketteField(blockette, field, value):
 def loadResp(filename):
     resp = []
     blocketteFieldPattern = re.compile(r'^B(\d\d\d)F(\d\d)\s+(\S.+):\s+(\S.*)$')
+    emptyLocationPattern = re.compile(r'^B(\d\d\d)F(\d\d)\s+(Location):\s+()$')
     poleZeroFieldPattern = re.compile(r'^B(\d\d\d)F(\d\d\-\d\d)\s+(\d+\s+\S.*)$')
     prevB = None
     blockette = None
@@ -72,6 +73,8 @@ def loadResp(filename):
                continue
            elif line[0] == 'B':
                mb = blocketteFieldPattern.match(line)
+               if mb is None:
+                 mb = emptyLocationPattern.match(line)
                if mb is not None:
                  b = mb.group(1)
                  f = mb.group(2)
@@ -88,7 +91,7 @@ def loadResp(filename):
                    for i in range(1, len(vtmp)):
                       v.append(float(vtmp[i]))
                  else:
-                   raise Exception( "no pattern match: %s"%(line,))
+                   raise Exception( "no pattern match: %s in %s"%(line,filename))
                if b != prevB:
                    if blockette is not None:
                        resp.append(cleanBlockette(blockette))
