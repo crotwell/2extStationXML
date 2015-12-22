@@ -151,6 +151,10 @@ def main():
     sisNamespace = parseArgs.namespace
     if parseArgs.stationxml:
 
+        if not os.path.exists(parseArgs.stationxml):
+            print "can't fine stationxml file %s"%(parseArgs.stationxml,)
+            return
+
         # validate with SIS validator
         # http://maui.gps.caltech.edu/SIStrac/wiki/SIS/Code
 
@@ -201,6 +205,9 @@ are in current directory for validation.
 # StationType, ChannelType, GainType, and ResponseType
         rootobj.settype('sis:RootType')
 
+        if not os.path.exists(parseArgs.nrl):
+            print "can't find nrl dir at '%s', get with 'svn checkout http://seiscode.iris.washington.edu/svn/nrl/trunk nrl"%(parseArgs.nrl,)
+            return
         spsIndex = os.path.join(parseArgs.nrl, "logger_sample_rate.sort")
         if not os.path.exists(spsIndex):
             print "can't fine sps index file for NRL. Should be logger_sample_rate.sort inside NRL directory"
