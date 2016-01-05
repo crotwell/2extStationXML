@@ -86,6 +86,8 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                      sensorSubResponse.ResponseDictLink.Gain = sisxmlparser.SISGainType()
                      sensorSubResponse.ResponseDictLink.Gain.Value = oldResponse.Stage[0].StageGain.Value
                      sensorSubResponse.ResponseDictLink.Gain.Frequency = oldResponse.Stage[0].StageGain.Frequency
+                     sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].PolesZeros.InputUnits
+                     sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].PolesZeros.OutputUnits
 
                  else:
                      if len(sss) > 1:
