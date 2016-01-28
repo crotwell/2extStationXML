@@ -171,6 +171,8 @@ def main():
             if not validateOut == '0':
                 print "invalid stationxml document, errors: '%s'"%(validateOut,)
                 return
+            else:
+                print "OK"
         else:
             print """
 Can't find validator: %s %s
@@ -216,8 +218,12 @@ are in current directory for validation.
             print "python checkNRL.py --samplerate --nrl <path_to_nrl>"
             return
 
+# load logger response by sample rate index file, speeds search
         loggerRateIndex = checkNRL.loadRespfileSampleRate(spsIndex)
+# find all unique responses so only check identical channels once
         uniqResponse = uniqResponses.uniqueResponses(rootobj)
+# for each unique response, see if it is in the NRL so we use NRL instead of
+# a in file named response
         uniqWithNRL = checkNRL.checkRespListInNRL(parseArgs.nrl, uniqResponse, loggerRateIndex=loggerRateIndex)
         
 
@@ -282,8 +288,10 @@ are in current directory for validation.
                 logger.FilterSequence.FilterStage = []
                 loggerStartStage = 2
                 if isOnlyGainStage(namedResponse, 2):
+                    #stage 2 is gain only, so assume preamp "
                     loggerStartStage = 3
-                for s in namedResponse.Stage[loggerStartStage : ]:
+                # array index is 0-base, stage number is 1-base, so -1
+                for s in namedResponse.Stage[loggerStartStage-1 : ]:
                    filterStage = sisxmlparser.FilterStageType()
                    filterStage.SequenceNumber = s.number
                    if hasattr(s, "Decimation"):
