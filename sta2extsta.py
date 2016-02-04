@@ -10,6 +10,7 @@ import argparse
 import datetime 
 import dateutil.parser
 import os
+import re
 import subprocess
 import sys
 
@@ -35,6 +36,7 @@ def initArgParser():
   parser.add_argument('--namespace', default='Testing', help="SIS namespace to use for named responses, see http://anss-sis.scsn.org/sis/master/namespace/")
   parser.add_argument('--operator', default='Testing', help="SIS operator to use for stations, see http://anss-sis.scsn.org/sis/master/org/")
   parser.add_argument('--delcurrent', action="store_true", help="remove channels that are currently operating. Only do this if you want to go back and manually via the web interface add hardware for current epochs.")
+  parser.add_argument('--onlychan', default=False, help="only channels with codes matching regular expression, ie BH. for all broadband")
   parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
   return parser.parse_args()
 
@@ -62,8 +64,10 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
      sensorSubResponse.sequenceNumber = 1
      preampSubResponse = sisxmlparser.SubResponseType()
      preampSubResponse.sequenceNumber = 2
+     atodSubResponse = sisxmlparser.SubResponseType()
+     atodSubResponse.sequenceNumber = 3
      loggerSubResponse = sisxmlparser.SubResponseType()
-     loggerSubResponse.sequenceNumber = 3
+     loggerSubResponse.sequenceNumber = 4
 
      oldResponse = c.Response
      c.Response = sisxmlparser.SISResponseType()
@@ -104,7 +108,15 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                          preampSubResponse.PreampGain = namedResponse.Stage[1].StageGain.Value
                      else:
                          preampSubResponse = None
-                         loggerSubResponse.sequenceNumber = 2
+                         atodSubResponse.sequenceNumber = 2
+                         loggerSubResponse.sequenceNumber = 3
+                     atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
+                     atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
+                     atodOld = namedResponse.Stage[atodSubResponse.sequenceNumber-1]
+                     atodSubResponse.ResponseDetail.Gain.Value = atodOld.StageGain.Value
+                     atodSubResponse.ResponseDetail.Gain.Frequency = atodOld.StageGain.Frequency
+                     atodSubResponse.ResponseDetail.Gain.InputUnits = atodOld.Coefficients.InputUnits
+                     atodSubResponse.ResponseDetail.Gain.OutputUnits = atodOld.Coefficients.OutputUnits
                      loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
                      loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
                      loggerSubResponse.ResponseDictLink.SISNamespace = namespace
@@ -118,10 +130,14 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                      #loggerSubResponse.RESPFile.stageFrom = lll[0][2]
                      #loggerSubResponse.RESPFile.stageTo = lll[0][3]
                
-     if preampSubResponse is None:
-         c.Response.SubResponse = [ sensorSubResponse, loggerSubResponse ]
-     else:
-         c.Response.SubResponse = [ sensorSubResponse, preampSubResponse, loggerSubResponse ]
+     c.Response.SubResponse = []
+     c.Response.SubResponse.append( sensorSubResponse)
+     if preampSubResponse != None:
+         c.Response.SubResponse.append(preampSubResponse)
+     if atodSubResponse != None:
+         # might be None in case of NRL logger
+         c.Response.SubResponse.append(atodSubResponse)
+     c.Response.SubResponse.append( loggerSubResponse )
      if hasattr(c, 'Sensor'):
          #sometimes equipment comment in Sensor.Type
          if hasattr(c.Sensor, 'Type'):
@@ -147,6 +163,43 @@ def toSISPolesZeros(pz):
         sisPZ.Pole = pz.Pole
     return sisPZ
 
+
+def createResponseDict(prototypeChan, s, sisNamespace):
+    '''create sis ResponseDict from a Stage'''
+    rd = sisxmlparser.ResponseDictType()
+    if hasattr(s, "PolesZeros"):
+        rd.PolesZeros = toSISPolesZeros(s.PolesZeros)
+        rd.PolesZeros.name = "FS_%d_%s"%(s.number, prototypeChan)
+        rd.PolesZeros.SISNamespace = sisNamespace
+    elif hasattr(s, "FIR"):
+        rd.FIR = sisxmlparser.SISFIRType()
+        if hasattr(s.FIR, 'Description'):
+            rd.FIR.Description = s.FIR.Description
+        rd.FIR.InputUnits = s.FIR.InputUnits
+        rd.FIR.OutputUnits = s.FIR.OutputUnits
+        rd.FIR.Symmetry = s.FIR.Symmetry
+        rd.FIR.NumeratorCoefficient = s.FIR.NumeratorCoefficient
+        rd.FIR.name = "FS_%d_%s"%(s.number, prototypeChan)
+        rd.FIR.SISNamespace = sisNamespace
+    elif hasattr(s, "Coefficients"):
+        rd.Coefficients = sisxmlparser.SISCoefficientsType()
+        if hasattr(s.Coefficients, 'Description'):
+            rd.Coefficients.Description = s.Coefficients.Description
+        rd.Coefficients.InputUnits = s.Coefficients.InputUnits
+        rd.Coefficients.OutputUnits = s.Coefficients.OutputUnits
+        rd.Coefficients.CfTransferFunctionType = s.Coefficients.CfTransferFunctionType
+        if hasattr(s.Coefficients, "Numerator"):
+            rd.Coefficients.Numerator = s.Coefficients.Numerator
+        if hasattr(s.Coefficients, "Denominator"):
+            rd.Coefficients.Denominator = s.Coefficients.Denominator
+        rd.Coefficients.name = "FS_%d_%s"%(s.number, prototypeChan)
+        rd.Coefficients.SISNamespace = sisNamespace
+    else:
+        print "ERROR: stage does not have PZ, FIR or Coef: %s stage %s   \n%s"%(prototypeChan, s.number, dir(s))
+        rd = None
+    return rd
+
+
 def main():
     sisNamespace = "TESTING"
     parseArgs = initArgParser()
@@ -154,7 +207,7 @@ def main():
     if parseArgs.stationxml:
 
         if not os.path.exists(parseArgs.stationxml):
-            print "can't fine stationxml file %s"%(parseArgs.stationxml,)
+            print "ERROR: can't fine stationxml file %s"%(parseArgs.stationxml,)
             return
 
         # validate with SIS validator
@@ -169,13 +222,13 @@ def main():
                 validateOut = "error calling process: " + e.output
             validateOut = validateOut.strip()
             if not validateOut == '0':
-                print "invalid stationxml document, errors: '%s'"%(validateOut,)
+                print "ERROR: invalid stationxml document, errors: '%s'"%(validateOut,)
                 return
             else:
                 print "OK"
         else:
             print """
-Can't find validator: %s %s
+ERROR: Can't find validator: %s %s
             
             wget http://mirror.cc.columbia.edu/pub/software/apache//xerces/j/binaries/Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
             tar zxf Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
@@ -203,6 +256,18 @@ are in current directory for validation.
             rootobj.comments = []
         rootobj.comments.append("From: "+origModuleURI)
 
+        # del non-matching channels
+        if parseArgs.onlychan:
+            pattern = re.compile(parseArgs.onlychan)
+            for n in rootobj.Network:
+                for s in n.Station:
+                    tempChan = []
+                    for c in s.Channel:
+                        if pattern.match(c.code):
+                            tempChan.append(c)
+                    s.Channel = tempChan
+                  
+
 # Cannot use 'xsi:type' as an identifier which is how it is 
 # stored in the object. So a set function has been defined for this 
 # one case. Use it only when the type has been extended - RootType, 
@@ -210,11 +275,11 @@ are in current directory for validation.
         rootobj.settype('sis:RootType')
 
         if not os.path.exists(parseArgs.nrl):
-            print "can't find nrl dir at '%s', get with 'svn checkout http://seiscode.iris.washington.edu/svn/nrl/trunk nrl"%(parseArgs.nrl,)
+            print "ERROR: can't find nrl dir at '%s', get with 'svn checkout http://seiscode.iris.washington.edu/svn/nrl/trunk nrl"%(parseArgs.nrl,)
             return
         spsIndex = os.path.join(parseArgs.nrl, "logger_sample_rate.sort")
         if not os.path.exists(spsIndex):
-            print "can't fine sps index file for NRL. Should be logger_sample_rate.sort inside NRL directory"
+            print "ERROR: can't fine sps index file for NRL. Should be logger_sample_rate.sort inside NRL directory"
             print "python checkNRL.py --samplerate --nrl <path_to_nrl>"
             return
 
@@ -228,10 +293,9 @@ are in current directory for validation.
         
 
         for n in rootobj.Network:
-#          print "%s %s"%(n.code, n.getattr('xsi:type'))
-          print "%s %s"%(n.code, n.getattrxml())
+          print "%s "%(n.code,)
           for s in n.Station:
-            print "  %s   %s"%(s.code, s.getattrxml())
+            print "    %s   "%(s.code, )
             if not hasattr(s, 'Operator'):
                 s.Operator = []
                 sOp = sisxmlparser.OperatorType()
@@ -240,9 +304,9 @@ are in current directory for validation.
                 s.Operator.append(sOp)
             allChanCodes = {}
             for c in s.Channel:
-              print "    %s.%s "%(c.locationCode, c.code,)
+              print "        %s.%s "%(c.locationCode, c.code,)
               if c.endDate > datetime.datetime.now() and parseArgs.delcurrent:
-                 print "channel ends after now %s "%(checkNRL.getChanCodeId(n,s,c),)
+                 print "Delete Current: channel ends after now %s "%(checkNRL.getChanCodeId(n,s,c),)
                  s.Channel.remove(c)
               else:
 #                print "    %s.%s "%(c.getattr('locationCode'), c.code,)
@@ -252,10 +316,8 @@ are in current directory for validation.
                 allChanCodes[key].append(c)
                 fixResponseNRL(n, s, c, uniqWithNRL, sisNamespace)
 
-            print "all chan codes: %d"%(len(allChanCodes))
             for key, epochList in allChanCodes.iteritems():
               epochList.sort(key=getStartDate)
-              print "%s %d %s %s"%(key, len(epochList), epochList[-1].startDate, epochList[-1].endDate)
             
 
 # add named non-NRL responses to hardwareResponse
@@ -264,6 +326,10 @@ are in current directory for validation.
         if not hasattr(rootobj.HardwareResponse, "ResponseDictGroup"):
             rootobj.HardwareResponse.ResponseDictGroup = sisxmlparser.ResponseDictGroupType()
         
+        # save old stage as named and added so only add each unique stage once
+        # this is only for logger stages as sensor is taken care of in fixResponseNRL
+        prevAddedFilterStage = {}
+
         respGroup = rootobj.HardwareResponse.ResponseDictGroup
         if not hasattr(rootobj.HardwareResponse.ResponseDictGroup, "ResponseDict"):
             rootobj.HardwareResponse.ResponseDictGroup.ResponseDict = []
@@ -278,7 +344,9 @@ are in current directory for validation.
                     sensor.PolesZeros.SISNamespace = sisNamespace 
                 else:
                     print "WARNING: sensor response for %s doesnot have PolesZeros"%(prototypeChan,)
+                    return
                 respGroup.ResponseDict.append(sensor)
+                    
             if len(lll) == 0:
                 # add later stages as logger
                 logger = sisxmlparser.ResponseDictType()
@@ -291,7 +359,23 @@ are in current directory for validation.
                     #stage 2 is gain only, so assume preamp "
                     loggerStartStage = 3
                 # array index is 0-base, stage number is 1-base, so -1
-                for s in namedResponse.Stage[loggerStartStage-1 : ]:
+                # first logger stage should be AtoD stage and SIS wants
+                # that separate from the filter chain
+                if not hasattr(namedResponse.Stage[loggerStartStage-1], "Coefficients"):
+                   print "ERROR: expecting AtoD stage, which should have Coefficients, but not found. %d %s"%(loggerStartStage, prototypeChan)
+                   return
+                if not (namedResponse.Stage[loggerStartStage-1].Coefficients.InputUnits.Name == 'V' and namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name == 'COUNTS'):
+                   # no AtoD???, quit with error
+                   print "ERROR: Was expecting AtoD stage, V to COUNTS, but found %s to %s, %s"%(namedResponse.Stage[loggerStartStage-1].Coefficients.InputUnits.Name, namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name, prototypeChan)
+                   return
+                # now deal with actual filter chain
+                for s in namedResponse.Stage[loggerStartStage : ]:
+                   # first search to see if we have already added this filter stage
+                   found = False
+                   for oldName, oldStage in prevAddedFilterStage.iteritems():
+                       if uniqResponses.areSameStage(s, oldStage)[0]:
+                           found=True
+                           break
                    filterStage = sisxmlparser.FilterStageType()
                    filterStage.SequenceNumber = s.number
                    if hasattr(s, "Decimation"):
@@ -301,43 +385,26 @@ are in current directory for validation.
                    if hasattr(s, "StageGain"):
                        filterStage.Gain = s.StageGain
                    filterStage.Filter = sisxmlparser.FilterIDType()
-                   filterStage.Filter.Name = "FS_%d_%s"%(s.number, prototypeChan)
+
+                   if not found:
+                       filterStage.Filter.Name = "FS_%d_%s"%(s.number, prototypeChan)
+                       rd = createResponseDict(prototypeChan, s, sisNamespace)
+                       respGroup.ResponseDict.append(rd)
+                       prevAddedFilterStage[filterStage.Filter.Name] = s
+                   else:
+                       filterStage.Filter.Name = oldName
                    filterStage.Filter.SISNamespace = sisNamespace
-                   logger.FilterSequence.FilterStage.append(filterStage)
-                   rd = sisxmlparser.ResponseDictType()
+                   # set type
                    if hasattr(s, "PolesZeros"):
                        filterStage.Filter.Type = "PolesZeros"
-                       rd.PolesZeros = toSISPolesZeros(s.PolesZeros)
-                       rd.PolesZeros.name = "FS_%d_%s"%(s.number, prototypeChan)
-                       rd.PolesZeros.SISNamespace = sisNamespace
                    elif hasattr(s, "FIR"):
                        filterStage.Filter.Type = "FIR"
-                       rd.FIR = sisxmlparser.SISFIRType()
-                       if hasattr(s.FIR, 'Description'):
-                           rd.FIR.Description = s.FIR.Description
-                       rd.FIR.InputUnits = s.FIR.InputUnits
-                       rd.FIR.OutputUnits = s.FIR.OutputUnits
-                       rd.FIR.Symmetry = s.FIR.Symmetry
-                       rd.FIR.NumeratorCoefficient = s.FIR.NumeratorCoefficient
-                       rd.FIR.name = "FS_%d_%s"%(s.number, prototypeChan)
-                       rd.FIR.SISNamespace = sisNamespace
                    elif hasattr(s, "Coefficients"):
                        filterStage.Filter.Type = "Coefficients"
-                       rd.Coefficients = sisxmlparser.SISCoefficientsType()
-                       if hasattr(s.Coefficients, 'Description'):
-                           rd.Coefficients.Description = s.Coefficients.Description
-                       rd.Coefficients.InputUnits = s.Coefficients.InputUnits
-                       rd.Coefficients.OutputUnits = s.Coefficients.OutputUnits
-                       rd.Coefficients.CfTransferFunctionType = s.Coefficients.CfTransferFunctionType
-                       if hasattr(s.Coefficients, "Numerator"):
-                           rd.Coefficients.Numerator = s.Coefficients.Numerator
-                       if hasattr(s.Coefficients, "Denominator"):
-                           rd.Coefficients.Denominator = s.Coefficients.Denominator
-                       rd.Coefficients.name = "FS_%d_%s"%(s.number, prototypeChan)
-                       rd.Coefficients.SISNamespace = sisNamespace
                    else:
                        print "stage does not have PZ, FIR or Coef: %s stage %s   \n%s"%(prototypeChan, s.number, dir(s))
-                   respGroup.ResponseDict.append(rd)
+
+                   logger.FilterSequence.FilterStage.append(filterStage)
                 respGroup.ResponseDict.append(logger)
                   
 
