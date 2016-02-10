@@ -34,7 +34,7 @@ def main():
           for c in s.Channel:
             cCode = checkNRL.getChanCodeId(n,s,c)
             print cCode
-    return
+      return
 
     chanA = None
     chanB = None
