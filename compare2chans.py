@@ -14,6 +14,7 @@ import sys
 
 def usage():
     print "python compare2chans <file.staxml> <chanAId> <chanBId>"
+    print "python compare2chans <file.staxml> --list"
 
 
 def main():
@@ -26,6 +27,15 @@ def main():
         print "Can't find file %s"%(args[0],)
         return
     staxml = sisxmlparser.parse(args[0])
+    if args[1] == '--list':
+      print "--all channels--"
+      for n in staxml.Network:
+        for s in n.Station:
+          for c in s.Channel:
+            cCode = checkNRL.getChanCodeId(n,s,c)
+            print cCode
+    return
+
     chanA = None
     chanB = None
     for n in staxml.Network:
