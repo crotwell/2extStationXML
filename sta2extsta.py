@@ -95,7 +95,9 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
 
                  else:
                      if len(sss) > 1:
-                       print "WARNING: %s has more than one matching sensor, using first"%(chanCodeId,)
+                       print "WARNING: %s has more than one matching sensor response in NRL, using first"%(chanCodeId,)
+                       for temps in sss:
+                         print "  %s"%(temps[0],)
                      sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
                      sensorSubResponse.RESPFile.ValueOf = sss[0][0].replace("nrl", NRL_PREFIX)
                      # stage To/From not required for NRL responses, use SIS rules
@@ -123,7 +125,9 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                      loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
                  else:
                      if len(lll) > 1:
-                       print "WARNING: %s has more than one matching logger, using first"%(chanCodeId,)
+                       print "WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,)
+                       for templ in lll:
+                         print "  %s"%(templ[0],)
                      loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
                      loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
                      # stage To/From not required for NRL responses, use SIS rules
