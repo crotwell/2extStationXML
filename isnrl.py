@@ -13,8 +13,8 @@ import re
 import subprocess
 import sys
 
-VERBOSE=True
-#VERBOSE=False
+#VERBOSE=True
+VERBOSE=False
 
 def usage():
     print "python isnrl <file.staxml> <chanAId>"
