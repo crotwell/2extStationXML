@@ -131,6 +131,15 @@ def areSameStage(stageA, stageB):
     return sameGain(stageA, stageB)
     
 
+def areSameStageByIndex(respA, respB, stageIndex):
+    stageA = getattr(respA, 'Stage', [])
+    stageB = getattr(respB, 'Stage', [])
+    result = areSameStage(respA.Stage[stageIndex+1], respB.Stage[stageIndex+1])
+    if not result[0]:
+        result = False, "Stage %d %s"%(stageIndex,result[1])
+        if VERBOSE: print result[0]
+        return result
+    return True, "ok"
 
 def areSameResponse(respA, respB):
     stageA = getattr(respA, 'Stage', [])

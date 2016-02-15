@@ -50,6 +50,7 @@ def main():
         print "did not find channels: %s %s %s %s"%(chanA, chanB, args[1], args[2])
         return
 
+    print "Sensor compare: %s"%(uniqResponses.areSameStageByIndex(chanA.Response, chanB.Response, 1),)
     result = uniqResponses.areSameResponse(chanA.Response, chanB.Response)
     print result
  
