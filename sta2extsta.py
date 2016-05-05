@@ -271,6 +271,29 @@ are in current directory for validation.
                             tempChan.append(c)
                     s.Channel = tempChan
                   
+        for n in rootobj.Network:
+            for s in n.Station:
+                tempChan = []
+                for c in s.Channel:
+                    if isOnlyGainStage(c.Response, 1):
+                         # for weird case of gain channels for gain-ranged channels
+                         # input and output units should be volts and we will
+                         # insert a fake unity sensor for this.
+                         if c.Response.InstrumentSensitivity.InputUnits.Name == 'V' and c.Response.Stage[1].Coefficients.InputUnits.Name == 'V':
+                             print "INFO: adding unity V to V polezero to stage 1 for %s.%s.%s.%s"%(n.code, s.code, c.locationCode, c.code)
+                             pzTemp = sisxmlparser.PolesZerosType()
+                             pzTemp.InputUnits = c.Response.InstrumentSensitivity.InputUnits
+                             pzTemp.OutputUnits = c.Response.Stage[1].Coefficients.InputUnits
+                             pzTemp.PzTransferFunctionType = "LAPLACE (RADIANS/SECOND)"
+                             pzTemp.NormalizationFactor = 1
+                             pzTemp.NormalizationFrequency = 1
+                             pzTemp.Zero = []
+                             pzTemp.Pole = []
+                             c.Response.Stage[0].PolesZeros = pzTemp
+                         else:
+                             print "WARNING: can't fix stage 1, no poleszeros for %s.%s.%s.%s"%(n.code, s.code, c.locationCode, c.code)
+ 
+                                 
 
 # Cannot use 'xsi:type' as an identifier which is how it is 
 # stored in the object. So a set function has been defined for this 
