@@ -36,7 +36,7 @@ def initArgParser():
   parser.add_argument('--namespace', default='Testing', help="SIS namespace to use for named responses, see http://anss-sis.scsn.org/sis/master/namespace/")
   parser.add_argument('--operator', default='Testing', help="SIS operator to use for stations, see http://anss-sis.scsn.org/sis/master/org/")
   parser.add_argument('--delcurrent', action="store_true", help="remove channels that are currently operating. Only do this if you want to go back and manually via the web interface add hardware for current epochs.")
-  parser.add_argument('--onlychan', default=False, help="only channels with codes matching regular expression, ie BH. for all broadband")
+  parser.add_argument('--onlychan', default=False, help="only channels with codes matching regular expression, ie BH. for all broadband. Can also match locid like '00\.HH.' ")
   parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
   return parser.parse_args()
 
@@ -44,6 +44,18 @@ def convertToResponseDict(fdsnResponse):
     respDict = sisxmlparser.ResponseDict()
     respDict.FilterSequence = sisxmlparser.FilterSequenceType()
     
+def isAtoDStage(namedResponse, sNum):
+    for stage in namedResponse.Stage:
+       if stage.number == sNum:
+           break
+    if hasattr(stage, 'Coefficients') and hasattr(stage, 'Decimation'):
+       if hasattr(stage.Coefficients, 'InputUnits') and stage.Coefficients.InputUnits.Name == 'V' and \
+           hasattr(stage.Coefficients, 'OutputUnits') and \
+           (stage.Coefficients.OutputUnits.Name == 'COUNT' or stage.Coefficients.OutputUnits.Name == 'COUNTS'):
+           return True
+    #print "Coeff: %s  Dec:%s  In:%s  Out: %s"%(hasattr(stage, 'Coefficients'), hasattr(stage, 'Decimation'), stage.Coefficients.InputUnits.Name, stage.Coefficients.OutputUnits.Name)
+    return False
+
 def isOnlyGainStage(namedResponse, sNum):
     for stage in namedResponse.Stage:
        if stage.number == sNum:
@@ -112,6 +124,8 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                          preampSubResponse = None
                          atodSubResponse.sequenceNumber = 2
                          loggerSubResponse.sequenceNumber = 3
+                     if not isAtoDStage(namedResponse, atodSubResponse.sequenceNumber):
+                         raise Exception('Expected AtoD stage as %d, but does not look like V to COUNT Cefficients: %s'%(loggerSubResponse.sequenceNumber, chanCodeId))
                      atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
                      atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
                      atodOld = namedResponse.Stage[atodSubResponse.sequenceNumber-1]
@@ -268,6 +282,8 @@ are in current directory for validation.
                     tempChan = []
                     for c in s.Channel:
                         if pattern.match(c.code):
+                            tempChan.append(c)
+                        elif pattern.match("%s.%s"%(c.locationCode, c.code)):
                             tempChan.append(c)
                     s.Channel = tempChan
                   
