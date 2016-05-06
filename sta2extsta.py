@@ -14,7 +14,8 @@ import re
 import subprocess
 import sys
 
-VERBOSE = False
+#VERBOSE = False
+VERBOSE = True
 
 USAGE_TEXT = """
 Usage: python <Parser>.py <in_xml_file>
@@ -70,101 +71,109 @@ def isOnlyGainStage(namedResponse, sNum):
         return True
 
 def fixResponseNRL(n, s, c, uniqResponse, namespace):
-  if c.Response != None:
-     chanCodeId = checkNRL.getChanCodeId(n, s, c)
-     sensorSubResponse = sisxmlparser.SubResponseType()
-     sensorSubResponse.sequenceNumber = 1
-     preampSubResponse = sisxmlparser.SubResponseType()
-     preampSubResponse.sequenceNumber = 2
-     atodSubResponse = sisxmlparser.SubResponseType()
-     atodSubResponse.sequenceNumber = 3
-     loggerSubResponse = sisxmlparser.SubResponseType()
-     loggerSubResponse.sequenceNumber = 4
+  if c.Response is None:
+     print "Channel has no Response: "+c.chanCodeId
+     return
 
-     oldResponse = c.Response
-     c.Response = sisxmlparser.SISResponseType()
-     if oldResponse.InstrumentSensitivity != None:
-         c.Response.InstrumentSensitivity = oldResponse.InstrumentSensitivity
-     else:
-         # need to calculate overall sensitivity
-         print "WARNING: %s does not have InstrumentSensitivity, this is required in SIS."%(chanCodeId,)
-     for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqResponse:
-         for xcode in chanCodeList:
-             if xcode == chanCodeId:
-                 # found it
-                 # sensor ######
-                 if len(sss) == 0 :
-                     # not nrl, so use named response
-                     sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType2()
-                     sensorSubResponse.ResponseDictLink.Name = "S_"+prototypeChan
-                     sensorSubResponse.ResponseDictLink.SISNamespace = namespace
-                     sensorSubResponse.ResponseDictLink.Type = 'PolesZeros'
-                     sensorSubResponse.ResponseDictLink.Gain = sisxmlparser.SISGainType()
-                     sensorSubResponse.ResponseDictLink.Gain.Value = oldResponse.Stage[0].StageGain.Value
-                     sensorSubResponse.ResponseDictLink.Gain.Frequency = oldResponse.Stage[0].StageGain.Frequency
-                     sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].PolesZeros.InputUnits
-                     sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].PolesZeros.OutputUnits
+  chanCodeId = checkNRL.getChanCodeId(n, s, c)
 
-                 else:
-                     if len(sss) > 1:
-                       print "WARNING: %s has more than one matching sensor response in NRL, using first"%(chanCodeId,)
-                       for temps in sss:
-                         print "  %s"%(temps[0],)
-                     sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
-                     sensorSubResponse.RESPFile.ValueOf = sss[0][0].replace("nrl", NRL_PREFIX)
-                     # stage To/From not required for NRL responses, use SIS rules
-                     #sensorSubResponse.RESPFile.stageFrom = 1
-                     #sensorSubResponse.RESPFile.stageTo = 1
-                 # datalogger #######
-                 if len(lll) == 0:
-                     # not nrl, so use named response
-                     if isOnlyGainStage(namedResponse, 2):
-                         preampSubResponse.PreampGain = namedResponse.Stage[1].StageGain.Value
-                     else:
-                         preampSubResponse = None
-                         atodSubResponse.sequenceNumber = 2
-                         loggerSubResponse.sequenceNumber = 3
-                     if not isAtoDStage(namedResponse, atodSubResponse.sequenceNumber):
-                         raise Exception('Expected AtoD stage as %d, but does not look like V to COUNT Cefficients: %s'%(loggerSubResponse.sequenceNumber, chanCodeId))
-                     atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
-                     atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
-                     atodOld = namedResponse.Stage[atodSubResponse.sequenceNumber-1]
-                     atodSubResponse.ResponseDetail.Gain.Value = atodOld.StageGain.Value
-                     atodSubResponse.ResponseDetail.Gain.Frequency = atodOld.StageGain.Frequency
-                     atodSubResponse.ResponseDetail.Gain.InputUnits = atodOld.Coefficients.InputUnits
-                     atodSubResponse.ResponseDetail.Gain.OutputUnits = atodOld.Coefficients.OutputUnits
-                     loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
-                     loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
-                     loggerSubResponse.ResponseDictLink.SISNamespace = namespace
-                     loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
-                 else:
-                     if len(lll) > 1:
-                       print "WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,)
-                       for templ in lll:
-                         print "  %s"%(templ[0],)
-                     loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
-                     loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
-                     # stage To/From not required for NRL responses, use SIS rules
-                     #loggerSubResponse.RESPFile.stageFrom = lll[0][2]
-                     #loggerSubResponse.RESPFile.stageTo = lll[0][3]
+  oldResponse = c.Response
+  c.Response = sisxmlparser.SISResponseType()
+  if oldResponse.InstrumentSensitivity != None:
+      c.Response.InstrumentSensitivity = oldResponse.InstrumentSensitivity
+  else:
+      # need to calculate overall sensitivity
+      print "WARNING: %s does not have InstrumentSensitivity, this is required in SIS."%(chanCodeId,)
+
+  if hasattr(c, 'Sensor'):
+      #sometimes equipment comment in Sensor.Type
+      if hasattr(c.Sensor, 'Type'):
+          if not hasattr(c, 'Comment'):
+              c.Comment = []
+          comment = sisxmlparser.CommentType()
+          comment.Value = "Sensor.Type: "+c.Sensor.Type
+          c.Comment.append(comment)
+      del c.Sensor
+  if not hasattr(oldResponse, 'Stage'):
+      print "WARNING: %s's Response does not have any Stage elements."%(chanCodeId,)
+      return
+
+  sensorSubResponse = sisxmlparser.SubResponseType()
+  sensorSubResponse.sequenceNumber = 1
+  preampSubResponse = sisxmlparser.SubResponseType()
+  preampSubResponse.sequenceNumber = 2
+  atodSubResponse = sisxmlparser.SubResponseType()
+  atodSubResponse.sequenceNumber = 3
+  loggerSubResponse = sisxmlparser.SubResponseType()
+  loggerSubResponse.sequenceNumber = 4
+  for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqResponse:
+      for xcode in chanCodeList:
+          if xcode == chanCodeId:
+              # found it
+              # sensor ######
+              if len(sss) == 0 :
+                  # not nrl, so use named response
+                  sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType2()
+                  sensorSubResponse.ResponseDictLink.Name = "S_"+prototypeChan
+                  sensorSubResponse.ResponseDictLink.SISNamespace = namespace
+                  sensorSubResponse.ResponseDictLink.Type = 'PolesZeros'
+                  sensorSubResponse.ResponseDictLink.Gain = sisxmlparser.SISGainType()
+                  sensorSubResponse.ResponseDictLink.Gain.Value = oldResponse.Stage[0].StageGain.Value
+                  sensorSubResponse.ResponseDictLink.Gain.Frequency = oldResponse.Stage[0].StageGain.Frequency
+                  sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].PolesZeros.InputUnits
+                  sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].PolesZeros.OutputUnits
+
+              else:
+                  if len(sss) > 1:
+                    print "WARNING: %s has more than one matching sensor response in NRL, using first"%(chanCodeId,)
+                    for temps in sss:
+                      print "  %s"%(temps[0],)
+                  sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
+                  sensorSubResponse.RESPFile.ValueOf = sss[0][0].replace("nrl", NRL_PREFIX)
+                  # stage To/From not required for NRL responses, use SIS rules
+                  #sensorSubResponse.RESPFile.stageFrom = 1
+                  #sensorSubResponse.RESPFile.stageTo = 1
+              # datalogger #######
+              if len(lll) == 0:
+                  # not nrl, so use named response
+                  if isOnlyGainStage(namedResponse, 2):
+                      preampSubResponse.PreampGain = namedResponse.Stage[1].StageGain.Value
+                  else:
+                      preampSubResponse = None
+                      atodSubResponse.sequenceNumber = 2
+                      loggerSubResponse.sequenceNumber = 3
+                  if not isAtoDStage(namedResponse, atodSubResponse.sequenceNumber):
+                      raise Exception('Expected AtoD stage as %d, but does not look like V to COUNT Cefficients: %s'%(loggerSubResponse.sequenceNumber, chanCodeId))
+                  atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
+                  atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
+                  atodOld = namedResponse.Stage[atodSubResponse.sequenceNumber-1]
+                  atodSubResponse.ResponseDetail.Gain.Value = atodOld.StageGain.Value
+                  atodSubResponse.ResponseDetail.Gain.Frequency = atodOld.StageGain.Frequency
+                  atodSubResponse.ResponseDetail.Gain.InputUnits = atodOld.Coefficients.InputUnits
+                  atodSubResponse.ResponseDetail.Gain.OutputUnits = atodOld.Coefficients.OutputUnits
+                  loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
+                  loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
+                  loggerSubResponse.ResponseDictLink.SISNamespace = namespace
+                  loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
+              else:
+                  if len(lll) > 1:
+                    print "WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,)
+                    for templ in lll:
+                      print "  %s"%(templ[0],)
+                  loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
+                  loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
+                  # stage To/From not required for NRL responses, use SIS rules
+                  #loggerSubResponse.RESPFile.stageFrom = lll[0][2]
+                  #loggerSubResponse.RESPFile.stageTo = lll[0][3]
                
-     c.Response.SubResponse = []
-     c.Response.SubResponse.append( sensorSubResponse)
-     if preampSubResponse != None:
-         c.Response.SubResponse.append(preampSubResponse)
-     if atodSubResponse != None:
-         # might be None in case of NRL logger
-         c.Response.SubResponse.append(atodSubResponse)
-     c.Response.SubResponse.append( loggerSubResponse )
-     if hasattr(c, 'Sensor'):
-         #sometimes equipment comment in Sensor.Type
-         if hasattr(c.Sensor, 'Type'):
-             if not hasattr(c, 'Comment'):
-                 c.Comment = []
-             comment = sisxmlparser.CommentType()
-             comment.Value = "Sensor.Type: "+c.Sensor.Type
-             c.Comment.append(comment)
-         del c.Sensor
+  c.Response.SubResponse = []
+  c.Response.SubResponse.append( sensorSubResponse)
+  if preampSubResponse != None:
+      c.Response.SubResponse.append(preampSubResponse)
+  if atodSubResponse != None:
+      # might be None in case of NRL logger
+      c.Response.SubResponse.append(atodSubResponse)
+  c.Response.SubResponse.append( loggerSubResponse )
 
 def toSISPolesZeros(pz):
     sisPZ = sisxmlparser.SISPolesZerosType()
@@ -291,7 +300,7 @@ are in current directory for validation.
             for s in n.Station:
                 tempChan = []
                 for c in s.Channel:
-                    if isOnlyGainStage(c.Response, 1):
+                    if hasattr(c, 'Response') and hasattr(c.Response, 'Stage') and isOnlyGainStage(c.Response, 1):
                          # for weird case of gain channels for gain-ranged channels
                          # input and output units should be volts and we will
                          # insert a fake unity sensor for this.
@@ -377,6 +386,9 @@ are in current directory for validation.
         if not hasattr(rootobj.HardwareResponse.ResponseDictGroup, "ResponseDict"):
             rootobj.HardwareResponse.ResponseDictGroup.ResponseDict = []
         for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqWithNRL:
+            if not hasattr(namedResponse, 'Stage'):
+                # no stages, so do not need to add
+                continue
             if VERBOSE: print "add to hardware, prototype: "+prototypeChan
             if len(sss) == 0:
                 # add stage 1 as sensor
