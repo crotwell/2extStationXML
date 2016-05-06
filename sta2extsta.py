@@ -151,10 +151,14 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                   atodSubResponse.ResponseDetail.Gain.Frequency = atodOld.StageGain.Frequency
                   atodSubResponse.ResponseDetail.Gain.InputUnits = atodOld.Coefficients.InputUnits
                   atodSubResponse.ResponseDetail.Gain.OutputUnits = atodOld.Coefficients.OutputUnits
-                  loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
-                  loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
-                  loggerSubResponse.ResponseDictLink.SISNamespace = namespace
-                  loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
+                  # check make sure there are more stages
+                  if len(namedResponse.Stage) < loggerSubResponse.sequenceNumber:
+                      loggerSubResponse = None
+                  else:
+                      loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
+                      loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
+                      loggerSubResponse.ResponseDictLink.SISNamespace = namespace
+                      loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
               else:
                   if len(lll) > 1:
                     print "WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,)
@@ -173,7 +177,8 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
   if atodSubResponse != None:
       # might be None in case of NRL logger
       c.Response.SubResponse.append(atodSubResponse)
-  c.Response.SubResponse.append( loggerSubResponse )
+  if loggerSubResponse is not None:
+      c.Response.SubResponse.append( loggerSubResponse )
 
 def toSISPolesZeros(pz):
     sisPZ = sisxmlparser.SISPolesZerosType()
@@ -290,9 +295,12 @@ are in current directory for validation.
                 for s in n.Station:
                     tempChan = []
                     for c in s.Channel:
+                        locid = c.locationCode
+                        if locid is None or len(locid) == 0:
+                            locid = "--"
                         if pattern.match(c.code):
                             tempChan.append(c)
-                        elif pattern.match("%s.%s"%(c.locationCode, c.code)):
+                        elif pattern.match("%s.%s"%(locid, c.code)):
                             tempChan.append(c)
                     s.Channel = tempChan
                   
@@ -460,7 +468,9 @@ are in current directory for validation.
                        print "stage does not have PZ, FIR or Coef: %s stage %s   \n%s"%(prototypeChan, s.number, dir(s))
 
                    logger.FilterSequence.FilterStage.append(filterStage)
-                respGroup.ResponseDict.append(logger)
+                if len(namedResponse.Stage[loggerStartStage : ]) > 0:
+                   # only add if not empty
+                   respGroup.ResponseDict.append(logger)
                   
 
 # Finally after the instance is built export it. 
