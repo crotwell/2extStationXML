@@ -33,7 +33,7 @@ def getStartDate(channel):
 def initArgParser():
   parser = argparse.ArgumentParser(description='Convert StationXML to ExtendedStationXML.')
   parser.add_argument('-s', '--stationxml', required=True, help="input FDSN StationXML file, often retrieved from http://service.iris.edu/fdsnws/station/1/")
-  parser.add_argument('--nrl', help="replace matching responses with links to NRL")
+  parser.add_argument('--nrl', default='nrl', help="replace matching responses with links to NRL")
   parser.add_argument('--namespace', default='Testing', help="SIS namespace to use for named responses, see http://anss-sis.scsn.org/sis/master/namespace/")
   parser.add_argument('--operator', default='Testing', help="SIS operator to use for stations, see http://anss-sis.scsn.org/sis/master/org/")
   parser.add_argument('--delcurrent', action="store_true", help="remove channels that are currently operating. Only do this if you want to go back and manually via the web interface add hardware for current epochs.")
