@@ -398,19 +398,13 @@ are in current directory for validation.
               epochList.sort(key=getStartDate)
             
 
-# add named non-NRL responses to hardwareResponse
-        if not hasattr(rootobj, "HardwareResponse"):
-            rootobj.HardwareResponse = sisxmlparser.HardwareResponseType()
-        if not hasattr(rootobj.HardwareResponse, "ResponseDictGroup"):
-            rootobj.HardwareResponse.ResponseDictGroup = sisxmlparser.ResponseDictGroupType()
         
         # save old stage as named and added so only add each unique stage once
         # this is only for logger stages as sensor is taken care of in fixResponseNRL
         prevAddedFilterStage = {}
 
-        respGroup = rootobj.HardwareResponse.ResponseDictGroup
-        if not hasattr(rootobj.HardwareResponse.ResponseDictGroup, "ResponseDict"):
-            rootobj.HardwareResponse.ResponseDictGroup.ResponseDict = []
+        respGroup = sisxmlparser.ResponseDictGroupType()
+        respGroup.ResponseDict = []
         for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqWithNRL:
             if not hasattr(namedResponse, 'Stage'):
                 # no stages, so do not need to add
@@ -491,6 +485,14 @@ are in current directory for validation.
                    respGroup.ResponseDict.append(logger)
                   
 
+# add named non-NRL responses to HardwareResponse but not if respGroup is empty
+        if len(respGroup.ResponseDict) > 0:
+            if not hasattr(rootobj, "HardwareResponse"):
+                rootobj.HardwareResponse = sisxmlparser.HardwareResponseType()
+            if not hasattr(rootobj.HardwareResponse, "ResponseDictGroup"):
+                rootobj.HardwareResponse.ResponseDictGroup = respGroup
+            else:
+                raise SISError ("rootobj already has HardwareResponse.ResponseDictGroup!")
 # Finally after the instance is built export it. 
         rootobj.exportxml(parseArgs.outfile, 'FDSNStationXML', 'fsx', 0)
 #        rootobj.exportxml(sys.stdout, 'FDSNStationXML', 'fsx', 0)
