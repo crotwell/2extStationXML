@@ -39,6 +39,7 @@ def initArgParser():
   parser.add_argument('--delcurrent', action="store_true", help="remove channels that are currently operating. Only do this if you want to go back and manually via the web interface add hardware for current epochs.")
   parser.add_argument('--onlychan', default=False, help="only channels with codes matching regular expression, ie BH. for all broadband. Can also match locid like '00\.HH.' Empty loc ids for filtering as '--'")
   parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
+  parser.add_argument('-v', '--verbose', action='store_true', help="verbose output")
   return parser.parse_args()
 
 def convertToResponseDict(fdsnResponse):
@@ -241,6 +242,8 @@ def createResponseDict(prototypeChan, s, sisNamespace):
 def main():
     sisNamespace = "TESTING"
     parseArgs = initArgParser()
+    if parseArgs.verbose:
+        VERBOSE=True
     sisNamespace = parseArgs.namespace
     if parseArgs.stationxml:
 
@@ -353,11 +356,14 @@ are in current directory for validation.
             return
 
 # load logger response by sample rate index file, speeds search
+        if VERBOSE: print "load NRL sample rate index"
         loggerRateIndex = checkNRL.loadRespfileSampleRate(spsIndex)
 # find all unique responses so only check identical channels once
+        if VERBOSE: print "find unique responses in xml"
         uniqResponse = uniqResponses.uniqueResponses(rootobj)
 # for each unique response, see if it is in the NRL so we use NRL instead of
 # a in file named response
+        if VERBOSE: print "look for responses in NRL...this could take a while"
         uniqWithNRL = checkNRL.checkRespListInNRL(parseArgs.nrl, uniqResponse, loggerRateIndex=loggerRateIndex)
         
 
