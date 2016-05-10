@@ -14,8 +14,8 @@ import re
 import subprocess
 import sys
 
-#VERBOSE = False
-VERBOSE = True
+VERBOSE = False
+#VERBOSE = True
 
 USAGE_TEXT = """
 Usage: python <Parser>.py <in_xml_file>
