@@ -71,11 +71,14 @@ def isOnlyGainStage(namedResponse, sNum):
         return True
 
 def fixResponseNRL(n, s, c, uniqResponse, namespace):
-  if c.Response is None:
-     print "Channel has no Response: "+c.chanCodeId
-     return
 
   chanCodeId = checkNRL.getChanCodeId(n, s, c)
+
+  if VERBOSE:
+      print "fixResponseNRL: %s"%(chanCodeId,)
+  if c.Response is None:
+     print "Channel has no Response: "+chanCodeId
+     return
 
   oldResponse = c.Response
   c.Response = sisxmlparser.SISResponseType()
@@ -109,9 +112,9 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
   for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqResponse:
       for xcode in chanCodeList:
           if xcode == chanCodeId:
-              # found it
               # sensor ######
               if len(sss) == 0 :
+                  if VERBOSE: print " sensor not NRL, use named resp: %s"%(xcode,)
                   # not nrl, so use named response
                   sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType2()
                   sensorSubResponse.ResponseDictLink.Name = "S_"+prototypeChan
@@ -128,6 +131,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                     print "WARNING: %s has more than one matching sensor response in NRL, using first"%(chanCodeId,)
                     for temps in sss:
                       print "  %s"%(temps[0],)
+                  if VERBOSE: print " sensor in NRL: %s"%(xcode,)
                   sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
                   sensorSubResponse.RESPFile.ValueOf = sss[0][0].replace("nrl", NRL_PREFIX)
                   # stage To/From not required for NRL responses, use SIS rules
@@ -135,6 +139,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                   #sensorSubResponse.RESPFile.stageTo = 1
               # datalogger #######
               if len(lll) == 0:
+                  if VERBOSE: print " logger not NRL, use named resp: %s"%(xcode,)
                   # not nrl, so use named response
                   if isOnlyGainStage(namedResponse, 2):
                       preampSubResponse.PreampGain = namedResponse.Stage[1].StageGain.Value
@@ -164,6 +169,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                     print "WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,)
                     for templ in lll:
                       print "  %s"%(templ[0],)
+                  if VERBOSE: print " logger in NRL: %s"%(xcode,)
                   loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
                   loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
                   # stage To/From not required for NRL responses, use SIS rules
@@ -302,6 +308,9 @@ are in current directory for validation.
                             tempChan.append(c)
                         elif pattern.match("%s.%s"%(locid, c.code)):
                             tempChan.append(c)
+                        else:
+                            if VERBOSE:
+                                print "Skip %s as doesn't match --onlychan"%(checkNRL.getChanCodeId(n, s, c),)
                     s.Channel = tempChan
                   
         for n in rootobj.Network:
@@ -363,16 +372,19 @@ are in current directory for validation.
                 sOp.Agency.append(parseArgs.operator)
                 s.Operator.append(sOp)
             allChanCodes = {}
+            tempChan = []
             for c in s.Channel:
-              print "        %s.%s "%(c.locationCode, c.code,)
               if c.endDate > datetime.datetime.now() and parseArgs.delcurrent:
-                 print "Delete Current: channel ends after now %s "%(checkNRL.getChanCodeId(n,s,c),)
-                 s.Channel.remove(c)
+                 print "        %s.%s --delcurrent: delete channel ends after now %s "%(c.locationCode, c.code, checkNRL.getChanCodeId(n,s,c),)
               else:
-#                print "    %s.%s "%(c.getattr('locationCode'), c.code,)
+                 tempChan.append(c)
+            s.Channel = tempChan
+
+            for c in s.Channel:
+                print "        %s.%s "%(c.locationCode, c.code,)
                 key = "%s.%s"%(c.locationCode, c.code)
                 if not key in allChanCodes:
-                  allChanCodes[key] = []
+                    allChanCodes[key] = []
                 allChanCodes[key].append(c)
                 fixResponseNRL(n, s, c, uniqWithNRL, sisNamespace)
 
