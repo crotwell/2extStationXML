@@ -149,9 +149,12 @@ def checkIntEqual(reason, valA, valB):
 
 def checkFloatEqual(reason, valA, valB, tolPercent):
     #print "check float %s, %f, %f, < %f"%(reason, valA, valB, tolPercent)
-    if valA == 0.0 and valB == 0:
-       return True, "ok"
-    if abs((valA - valB)/valA) < tolPercent:
+    if valA == 0.0:
+       if valB == 0.0:
+          return True, "ok"
+       else:
+          return False, "%s %f != %f (tol %% %f)"%(reason, valA, valB, tolPercent)
+    elif abs((valA - valB)/valA) < tolPercent:
        return True, "ok"
     else:
        return False, "%s %f != %f (tol %% %f)"%(reason, valA, valB, tolPercent)
