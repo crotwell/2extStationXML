@@ -23,8 +23,10 @@ Usage: python <Parser>.py <in_xml_file>
 
 NRL_PREFIX = "http://ds.iris.edu/NRL"
 
+SCHEMA_FILE = "sis_extension_2.0.xsd"
+
 def usage():
-    print USAGE_TEXT
+    print(USAGE_TEXT)
     sys.exit(1)
 
 def getStartDate(channel):
@@ -252,13 +254,21 @@ def main():
             return
 
         # validate with SIS validator
-        # http://maui.gps.caltech.edu/SIStrac/wiki/SIS/Code
+        # http://wiki.anss-sis.scsn.org/SIStrac/wiki/SIS/Code
+
+        if not os.path.exists(SCHEMA_FILE):
+            print """
+Can't find schema file sis_extension_2.0.xsd
+
+    wget -O sis_extension_2.0.xsd https://anss-sis.scsn.org/xml/ext-stationxml/2.0/sis_extension.xsd
+"""
+            return;
 
        
-        if os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') and os.path.exists('validator/ValidateStationXml.class'):
+        if os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') and os.path.exists('xmlvalidator/ValidateStationXml.class'):
             print "Validating xml..."
             try:
-                validateOut = subprocess.check_output(['java', '-cp', 'validator:xerces-2_11_0-xml-schema-1.1-beta/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.', 'ValidateStationXml', '-i', parseArgs.stationxml])
+                validateOut = subprocess.check_output(['java', '-cp', 'xmlvalidator:xerces-2_11_0-xml-schema-1.1-beta/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.', 'ValidateStationXml', '-s', SCHEMA_FILE, '-i', parseArgs.stationxml])
             except subprocess.CalledProcessError as e:
                 validateOut = "error calling process: " + e.output
             validateOut = validateOut.strip()
