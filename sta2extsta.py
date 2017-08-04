@@ -5,6 +5,7 @@ use the classes in sisxmlparser2_0 to generate an ExtStationXML file from regula
 import checkNRL as checkNRL
 import sisxmlparser2_0 as sisxmlparser
 import uniqResponses as uniqResponses
+import cleanUnitNames as cleanUnitNames
 
 import argparse
 import datetime 
@@ -55,7 +56,7 @@ def isAtoDStage(namedResponse, sNum):
     if hasattr(stage, 'Coefficients') and hasattr(stage, 'Decimation'):
        if hasattr(stage.Coefficients, 'InputUnits') and stage.Coefficients.InputUnits.Name == 'V' and \
            hasattr(stage.Coefficients, 'OutputUnits') and \
-           (stage.Coefficients.OutputUnits.Name == 'COUNT' or stage.Coefficients.OutputUnits.Name == 'COUNTS'):
+           (stage.Coefficients.OutputUnits.Name == 'count' or stage.Coefficients.OutputUnits.Name == 'counts'):
            return True
     #print "Coeff: %s  Dec:%s  In:%s  Out: %s"%(hasattr(stage, 'Coefficients'), hasattr(stage, 'Decimation'), stage.Coefficients.InputUnits.Name, stage.Coefficients.OutputUnits.Name)
     return False
@@ -151,7 +152,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                       atodSubResponse.sequenceNumber = 2
                       loggerSubResponse.sequenceNumber = 3
                   if not isAtoDStage(namedResponse, atodSubResponse.sequenceNumber):
-                      raise Exception('Expected AtoD stage as %d, but does not look like V to COUNT Cefficients: %s'%(loggerSubResponse.sequenceNumber, chanCodeId))
+                      raise Exception('Expected AtoD stage as %d, but does not look like V to count Cefficients: %s'%(loggerSubResponse.sequenceNumber, chanCodeId))
                   atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
                   atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
                   atodOld = namedResponse.Stage[atodSubResponse.sequenceNumber-1]
@@ -242,10 +243,14 @@ def createResponseDict(prototypeChan, s, sisNamespace):
 
 
 def main():
+    VERBOSE = False
     sisNamespace = "TESTING"
     parseArgs = initArgParser()
+    print "in main"
     if parseArgs.verbose:
         VERBOSE=True
+        for k, v in vars(parseArgs).iteritems():
+            print "    Args: %s %s"%(k, v)
     sisNamespace = parseArgs.namespace
     if parseArgs.stationxml:
 
@@ -294,7 +299,10 @@ are in current directory for validation.
 
         # Parse an xml file
         rootobj = sisxmlparser.parse(parseArgs.stationxml)
-        origModuleURI = rootobj.ModuleURI
+        if hasattr(rootobj, 'comments'):
+            origModuleURI = rootobj.ModuleURI
+        else:
+            origModuleURI = ""
 
         rootobj.schemaVersion='1.0',
         rootobj.Source=parseArgs.namespace
@@ -368,6 +376,12 @@ are in current directory for validation.
 # load logger response by sample rate index file, speeds search
         if VERBOSE: print "load NRL sample rate index"
         loggerRateIndex = checkNRL.loadRespfileSampleRate(spsIndex)
+# clean unit names (ie count instead of COUNTS)
+        cleanChanges = cleanUnitNames.cleanUnitNames(rootobj)
+        if VERBOSE:
+          for k, v in cleanChanges.iteritems():
+            if k != 'numChanges':
+                print "Rename unit: %s => %s"%(k, v)
 # find all unique responses so only check identical channels once
         if VERBOSE: print "find unique responses in xml"
         uniqResponse = uniqResponses.uniqueResponses(rootobj)
@@ -390,7 +404,7 @@ are in current directory for validation.
             allChanCodes = {}
             tempChan = []
             for c in s.Channel:
-              if c.endDate > datetime.datetime.now() and parseArgs.delcurrent:
+              if parseArgs.delcurrent and (not hasattr(c, 'endDate') or c.endDate > datetime.datetime.now() ):
                  print "        %s.%s --delcurrent: delete channel ends after now %s "%(c.locationCode, c.code, checkNRL.getChanCodeId(n,s,c),)
               else:
                  tempChan.append(c)
@@ -449,9 +463,9 @@ are in current directory for validation.
                 if not hasattr(namedResponse.Stage[loggerStartStage-1], "Coefficients"):
                    print "ERROR: expecting AtoD stage, which should have Coefficients, but not found. %d %s"%(loggerStartStage, prototypeChan)
                    return
-                if not (namedResponse.Stage[loggerStartStage-1].Coefficients.InputUnits.Name == 'V' and namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name == 'COUNTS'):
+                if not (namedResponse.Stage[loggerStartStage-1].Coefficients.InputUnits.Name == 'V' and (namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name == 'counts' or namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name == 'count')):
                    # no AtoD???, quit with error
-                   print "ERROR: Was expecting AtoD stage, V to COUNTS, but found %s to %s, %s"%(namedResponse.Stage[loggerStartStage-1].Coefficients.InputUnits.Name, namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name, prototypeChan)
+                   print "ERROR: Was expecting AtoD stage, V to count, but found %s to %s, %s"%(namedResponse.Stage[loggerStartStage-1].Coefficients.InputUnits.Name, namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name, prototypeChan)
                    return
                 # now deal with actual filter chain
                 for s in namedResponse.Stage[loggerStartStage : ]:
