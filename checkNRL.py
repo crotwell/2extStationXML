@@ -269,7 +269,7 @@ def areSimilarLogger(staxmlResp, nrlResp):
         return False, "no Stage in staxml"
     for staxmlStage in staxmlResp.Stage:
         if hasattr(staxmlStage, 'Coefficients'):
-            if (staxmlStage.Coefficients.InputUnits.Name == 'V' or staxmlStage.Coefficients.InputUnits.Name == 'VOLTS') and staxmlStage.Coefficients.OutputUnits.Name == 'COUNTS':
+            if (staxmlStage.Coefficients.InputUnits.Name == 'V' or staxmlStage.Coefficients.InputUnits.Name.lower() == 'volts'  or staxmlStage.Coefficients.InputUnits.Name.lower() == 'volt') and (staxmlStage.Coefficients.OutputUnits.Name.lower() == 'count' or staxmlStage.Coefficients.OutputUnits.Name.lower() == 'counts'):
                 atodStageStaxml = staxmlStage.number
                 break
     
