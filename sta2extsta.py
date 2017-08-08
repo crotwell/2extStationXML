@@ -379,6 +379,7 @@ are in current directory for validation.
 # clean unit names (ie count instead of COUNTS)
         cleanChanges = cleanUnitNames.cleanUnitNames(rootobj)
         if VERBOSE:
+          print "check units: %d changes"%(cleanChanges['numChanges'],)
           for k, v in cleanChanges.iteritems():
             if k != 'numChanges':
                 print "Rename unit: %s => %s"%(k, v)
