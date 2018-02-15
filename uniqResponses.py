@@ -3,7 +3,7 @@
 find unique responses in fdsn stationxml file
 '''
 import checkNRL as checkNRL
-import sisxmlparser2_0 as sisxmlparser
+import sisxmlparser2_2 as sisxmlparser
 
 import datetime
 import os
@@ -66,8 +66,8 @@ def sameCoefficients(coefA, coefB):
          checklist.append(("%d denominator"%(pi,), float(coefA.Denominator[pi].ValueOf), float(coefB.Denominator[pi].ValueOf), 0.001))
     result = checkNRL.checkMultiple(checklist)
     return result
- 
-    
+
+
 def sameFIR(firA, firB):
     result = checkNRL.checkMultiple( [
         ('Symmetry', firA.Symmetry, firB.Symmetry),
@@ -109,7 +109,7 @@ def sameGain(stageA, stageB):
     else:
         return True, "ok"
 
-    
+
 
 def areSameStage(stageA, stageB):
     result = areSameStageType(stageA, stageB)
@@ -129,7 +129,7 @@ def areSameStage(stageA, stageB):
     if not result[0]:
         return result
     return sameGain(stageA, stageB)
-    
+
 
 def areSameStageByIndex(respA, respB, stageIndex):
     stageA = getattr(respA, 'Stage', [])
@@ -179,7 +179,7 @@ def uniqueResponses(staxml):
                   foundMatch = uResp
                   break
           if foundMatch is None:
-              uniqResponse.append( ( chanCode, c.Response, [ chanCode] ) ) 
+              uniqResponse.append( ( chanCode, c.Response, [ chanCode] ) )
               if VERBOSE: print "no match %d"%(len(uniqResponse),)
           else:
               foundMatch[2].append(chanCode)
@@ -215,9 +215,8 @@ def main():
       sys.stdout.write("  Logger: ")
       for l in x[4]:
         sys.stdout.write("%s "%(l,))
-     
+
       print ""
 
 if __name__ == '__main__':
     main()
-

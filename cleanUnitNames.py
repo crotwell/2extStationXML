@@ -4,7 +4,7 @@ clean unit names in fdsn stationxml file
 see https://github.com/iris-edu/StationXML-Validator/wiki/Unit-name-overview-for-IRIS-StationXML-validator
 '''
 import checkNRL as checkNRL
-import sisxmlparser2_0 as sisxmlparser
+import sisxmlparser2_2 as sisxmlparser
 
 import argparse
 import datetime
@@ -78,7 +78,7 @@ def cleanUnitName(inUnitName, changes):
 # not sure if I really want to fix these...
 #    if (unit == 'degC'): outUnitName = 'celsius'
 #    if (unit == 'count' or unit == 'counts'): outUnitName = 'count'
-    if inUnitName != outUnitName: 
+    if inUnitName != outUnitName:
       changes['numChanges']+=1
       changes[inUnitName] = outUnitName
       if VERBOSE: print "change %s to %s"%(inUnitName, outUnitName)
@@ -88,7 +88,7 @@ def cleanUnitName(inUnitName, changes):
 
 def cleanUnit(inUnit, changes):
     inUnit.Name = cleanUnitName(inUnit.Name, changes)
-    
+
 
 def cleanBaseFilter(filter, changes):
     cleanUnit(filter.InputUnits, changes)
@@ -102,8 +102,8 @@ def cleanPolesZeros(pz, changes):
 def cleanCoefficients(coef, changes):
     cleanBaseFilter(coef, changes)
     return True, "ok"
- 
-    
+
+
 def cleanFIR(fir, changes):
     cleanBaseFilter(fir, changes)
     return True, "ok"
@@ -122,7 +122,7 @@ def cleanGain(gain, changes):
     if hasattr(gain, 'OutputUnits'):
       cleanUnit(gain.OutputUnits, changes)
 
-    
+
 
 def cleanStage(stage, changes):
     if hasattr(stage, 'PolesZeros'):
@@ -137,7 +137,7 @@ def cleanStage(stage, changes):
         cleanDecimation(stage.Decimation, changes)
     if hasattr(stage, 'StageGain'):
         cleanGain(stage.StageGain, changes)
-    
+
 
 def cleanResponse(resp, changes):
     if hasattr(resp, 'InstrumentSensitivity'):
@@ -164,7 +164,7 @@ def cleanUnitNames(staxml):
               cleanUnit(c.CalibrationUnits, changes)
           result = cleanResponse(c.Response, changes)
     if hasattr(staxml, 'HardwareResponse'):
-      
+
       if hasattr(staxml.HardwareResponse, 'ResponseDictGroup'):
         respDict = getattr(staxml.HardwareResponse.ResponseDictGroup, 'ResponseDict', [])
         for i in range(0, len(respDict)):
@@ -202,4 +202,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

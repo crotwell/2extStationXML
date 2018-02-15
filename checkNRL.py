@@ -4,10 +4,10 @@ Interact with the NRL and parse RESP files.
 '''
 
 
-import sisxmlparser2_0 as sisxmlparser
+import sisxmlparser2_2 as sisxmlparser
 
 import argparse
-import datetime 
+import datetime
 import os
 import re
 import sys
@@ -99,14 +99,14 @@ def loadResp(filename):
                    blockette[TYPE] = b
                    prevB = b
                if mb is not None:
-                   blockette = _addBlocketteField(blockette, f, v) 
+                   blockette = _addBlocketteField(blockette, f, v)
                else:
-                   blockette = _appendBlocketteField(blockette, f, v) 
+                   blockette = _appendBlocketteField(blockette, f, v)
     resp.append(cleanBlockette(blockette))
     return resp
 
 def cleanBlockette(b):
-    #print "clean %s  %s"%(b[TYPE], stageForBlockette(b)) 
+    #print "clean %s  %s"%(b[TYPE], stageForBlockette(b))
     if b[TYPE] == '053' or b[TYPE] == '054':
       b['04'] = int(b['04'])
     if b[TYPE] == '058' or b[TYPE] == '057':
@@ -127,7 +127,7 @@ def stageForBlockette(b):
     if b[TYPE] == '057':
        return b['03']
     raise Exception("unknown blockette type: %s"%(b[TYPE],))
-    
+
 def findRespBlockette(blockette, stage, blocketteType):
     for b in blockette:
         if b[TYPE] == blocketteType and stage == stageForBlockette(b):
@@ -173,7 +173,7 @@ def checkItem(item):
         raise Exception("unknown check tuple %s"%(item,))
     if VERBOSE and not result[0]: print "Fail item %s -> %s"%(item, result)
     return result
-      
+
 def checkMultiple(list):
     for item in list:
       result = checkItem(item)
@@ -272,7 +272,7 @@ def areSimilarLogger(staxmlResp, nrlResp):
             if (staxmlStage.Coefficients.InputUnits.Name == 'V' or staxmlStage.Coefficients.InputUnits.Name.lower() == 'volts'  or staxmlStage.Coefficients.InputUnits.Name.lower() == 'volt') and (staxmlStage.Coefficients.OutputUnits.Name.lower() == 'count' or staxmlStage.Coefficients.OutputUnits.Name.lower() == 'counts'):
                 atodStageStaxml = staxmlStage.number
                 break
-    
+
     result = checkItem(("num logger stages", len(staxmlResp.Stage)-atodStageStaxml, stageForBlockette(nrlResp[-2])-atodStageNRL))
     if not result[0]:
         return result
@@ -388,7 +388,7 @@ def checkRespListInNRL(nrlDir, respList, loggerRateIndex = None):
     if VERBOSE: print "walk %s"%(nrlDir,)
     for root, dirs, files in os.walk("%s/sensors"%(nrlDir,)):
       for respfile in files:
-        if respfile.startswith("RESP"): 
+        if respfile.startswith("RESP"):
             if VERBOSE: print "try %s"%(respfile,)
             r = loadResp(os.path.join(root, respfile))
             for respTuple in outList:
@@ -399,7 +399,7 @@ def checkRespListInNRL(nrlDir, respList, loggerRateIndex = None):
                   sss.append( ( os.path.join(root, respfile), resultSensor[2], resultSensor[3] ) )
     for root, dirs, files in os.walk("%s/dataloggers"%(nrlDir,)):
       for respfile in files:
-        if respfile.startswith("RESP"): 
+        if respfile.startswith("RESP"):
             if VERBOSE: print "try %s"%(respfile,)
             r = None # delay loading until a samp rate match
             for respTuple in outList:
@@ -477,8 +477,7 @@ def main():
               print "  logger: %s"%(rf[0],)
           else:
             print "  no logger match found"
- 
+
 
 if __name__ == "__main__":
     sys.exit(main())
-

@@ -3,7 +3,7 @@
 find unique responses in fdsn stationxml file
 '''
 import checkNRL as checkNRL
-import sisxmlparser2_0 as sisxmlparser
+import sisxmlparser2_2 as sisxmlparser
 import uniqResponses as uniqResponses
 
 import datetime
@@ -53,10 +53,8 @@ def main():
     print "Sensor compare: %s"%(uniqResponses.areSameStageByIndex(chanA.Response, chanB.Response, 1),)
     result = uniqResponses.areSameResponse(chanA.Response, chanB.Response)
     print result
- 
+
 
 
 if __name__ == '__main__':
     main()
-
-
