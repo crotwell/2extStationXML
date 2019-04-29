@@ -19,25 +19,30 @@ KNOWN_UNITS = [ "meter", "m", "m/s", "m/s**2",
 "millimeter", "mm", "mm/s", "mm/s**2", "mm/hour",
 "micrometer", "um", "um/s", "um/s**2",
 "nanometer", "nm", "nm/s", "nm/s**2",
-"second", "s", "millisecond", "ms", "microsecond", "us", "nanosecond", "ns",
+"second", "s", "millisecond", "ms",
+"microsecond", "us", "nanosecond", "ns",
 "minute", "min",
 "hour",
-"radian", "rad", "microradian", "urad", "nanoradian", "nrad",
+"radian", "rad", "microradian", "urad",
+"nanoradian", "nrad",
 "rad/s", "rad/s**2",
 "degree", "deg",
 "kelvin", "K",
 "celsius", "degC",
 "candela", "cd",
-"pascal", "Pa", "kilopascal", "kPa", "hectopascal", "hPa",
-"bar", "millibar", "mbar",
-"ampere", "A", "milliamp", "mA",
-"volt", "V", "millivolt", "mV", "microvolt", "uV",
+"pascal", "Pa", "kilopascal", "kPa",
+"hectopascal", "hPa",
+"bar", "bars", "millibar", "mbar",
+"ampere", "amperes", "A", "milliamp", "mA",
+"volt", "V", "millivolt", "mV",
+"microvolt", "uV",
 "ohm",
 "hertz", "Hz",
 "newton", "N",
 "joule", "J",
 "tesla", "T", "nanotesla", "nT",
-"strain", "m/m", "m**3/m**3", "cm/cm", "mm/mm", "um/um", "nm/nm", "microstrain",
+"strain", "m/m", "m**3/m**3", "cm/cm", "mm/mm", "um/um", "nm/nm",
+"microstrain",
 "watt", "W", "milliwatt", "mW",
 "V/m",
 "W/m**2",
@@ -48,7 +53,8 @@ KNOWN_UNITS = [ "meter", "m", "m/s", "m/s**2",
 "percent","%",
 "count","counts",
 "number",
-"unitless" ]
+"unitless",
+"unknown" ]
 
 
 #UNITS_WITH_CAPS = set([ "K","Pa","kPa","hPa","A","mA","V","mV","uV","Hz","N","J","T","nT","W","mW","V/m","W/m**2", "degC"])
@@ -76,13 +82,15 @@ def cleanUnitName(inUnitName, changes):
         unit = inUnitName.lower()
     outUnitName = unit
 # not sure if I really want to fix these...
+    if (unit.lower() == 'degc'):
+        outUnitName = 'degC'
 #    if (unit == 'degC'): outUnitName = 'celsius'
 #    if (unit == 'count' or unit == 'counts'): outUnitName = 'count'
     if inUnitName != outUnitName:
       changes['numChanges']+=1
       changes[inUnitName] = outUnitName
       if VERBOSE: print "change %s to %s"%(inUnitName, outUnitName)
-    if (not unit in KNOWN_UNIT_SET):
+    if (not outUnitName in KNOWN_UNIT_SET):
       print "WARNING: unknown unit: %s"%(inUnitName,)
     return outUnitName
 
