@@ -270,10 +270,21 @@ Can't find schema file sis_extension_2.2.xsd
             return;
 
 
-        if os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') and os.path.exists('xmlvalidator/ValidateStationXml.class'):
+        if os.path.exists('xerces-2_12_0-xml-schema-1.1') and os.path.exists('xmlvalidator/ValidateStationXml.class'):
             print "Validating xml..."
             try:
-                validateOut = subprocess.check_output(['java', '-cp', 'xmlvalidator:xerces-2_11_0-xml-schema-1.1-beta/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.', 'ValidateStationXml', '-s', SCHEMA_FILE, '-i', parseArgs.stationxml])
+                classpath = '.:xmlvalidator'
+                xercesDir = 'xerces-2_12_0-xml-schema-1.1'
+                jarList = ['xercesImpl.jar',
+                           'xml-apis.jar',
+                           'serializer.jar',
+                           'org.eclipse.wst.xml.xpath2.processor_1.2.0.jar']
+                for j in jarList:
+                    classpath = classpath+':'+xercesDir+"/"+j
+                classpath = classpath[1:]
+                
+                # 'xmlvalidator:xerces-2_12_0-xml-schema-1.1/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.'
+                validateOut = subprocess.check_output(['java', '-cp', classpath, 'ValidateStationXml', '-s', SCHEMA_FILE, '-i', parseArgs.stationxml])
             except subprocess.CalledProcessError as e:
                 validateOut = "error calling process: " + e.output
             validateOut = validateOut.strip()
