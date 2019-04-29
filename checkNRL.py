@@ -22,6 +22,7 @@ Usage: python <Parser>.py <in_xml_file>
 TYPE = "type"
 
 def setVerbose(b):
+    global VERBOSE
     VERBOSE = b
 
 def usage():
@@ -272,20 +273,27 @@ def areSimilarLogger(staxmlResp, nrlResp):
             if (staxmlStage.Coefficients.InputUnits.Name == 'V' or staxmlStage.Coefficients.InputUnits.Name.lower() == 'volts'  or staxmlStage.Coefficients.InputUnits.Name.lower() == 'volt') and (staxmlStage.Coefficients.OutputUnits.Name.lower() == 'count' or staxmlStage.Coefficients.OutputUnits.Name.lower() == 'counts'):
                 atodStageStaxml = staxmlStage.number
                 break
+    for staxmlStage in staxmlResp.Stage:
+        if hasattr(staxmlStage, 'Coefficients'):
+            if (staxmlStage.Coefficients.InputUnits.Name == 'V' or staxmlStage.Coefficients.InputUnits.Name.lower() == 'volts'  or staxmlStage.Coefficients.InputUnits.Name.lower() == 'volt') and (staxmlStage.Coefficients.OutputUnits.Name.lower() == 'count' or staxmlStage.Coefficients.OutputUnits.Name.lower() == 'counts'):
+                atodStageStaxml = staxmlStage.number
+                break
 
     result = checkItem(("num logger stages", len(staxmlResp.Stage)-atodStageStaxml, stageForBlockette(nrlResp[-2])-atodStageNRL))
     if not result[0]:
         return result
-    preampStageNRL = atodStageNRL - 1
-    preampStageStaxml = atodStageStaxml - 1
-    if VERBOSE: print "preamp logger stage is %d"%(preampStageNRL,)
-    b58 = findRespBlockette(nrlResp, preampStageNRL, '058')
-    if b58 is not None:
-        result = areSimilarStageB58(staxmlResp.Stage[preampStageStaxml-1], b58)
-        if not result[0]:
-            return False,"preamp stage %s: %s"%(preampStageNRL, result[1])
-    else:
-        return False,"Can't find b58 for preamp stage %d"%(preampStageNRL,)
+    # might not have preamp stage
+    if atodStageStaxml > 1:
+        preampStageNRL = atodStageNRL - 1
+        preampStageStaxml = atodStageStaxml - 1
+        if VERBOSE: print "preamp logger stage is %d"%(preampStageNRL,)
+        b58 = findRespBlockette(nrlResp, preampStageNRL, '058')
+        if b58 is not None:
+            result = areSimilarStageB58(staxmlResp.Stage[preampStageStaxml-1], b58)
+            if not result[0]:
+                return False,"preamp stage %s: %s"%(preampStageNRL, result[1])
+        else:
+            return False,"Can't find b58 for preamp stage %d"%(preampStageNRL,)
     loggerStageNRL = atodStageNRL
     loggerStageStaxml = atodStageStaxml
     b58 = findRespBlockette(nrlResp, loggerStageNRL, '058')
@@ -427,7 +435,7 @@ def checkNRL(nrlDir, staxml):
     '''
     obsolete, faster to check for unique responses first, then walk the nrl
     '''
-    loggerRateIndex = loadRespfileSampleRate('logger_samp_rate.sort')
+    loggerRateIndex = loadRespfileSampleRate(nrlDir+'/logger_sample_rate.sort')
     print "loggerRateIndex has %d entries"%(len(loggerRateIndex,))
 
     print "Sensor Check"
@@ -444,7 +452,11 @@ def main():
     parser.add_argument('-s', '--stationxml', help="input FDSN StationXML file, often retrieved from http://service.iris.edu/fdsnws/station/1/")
     parser.add_argument('--nrl', default='nrl', help="path to NRL")
     parser.add_argument('--samplerate', action="store_true", help="Generate the sample rate index file inside the nrl directory.")
+    parser.add_argument('-v', '--verbose', action='store_true', help="verbose output")
     parseArgs = parser.parse_args()
+    if parseArgs.verbose:
+        setVerbose(True)
+    print("verbose "+str(VERBOSE))
     args = sys.argv[1:]
     if len(args) == 0:
         usage()
@@ -457,6 +469,7 @@ def main():
         return
     staxml = sisxmlparser.parse(parseArgs.stationxml)
     (matchSensor, matchLogger) = checkNRL(parseArgs.nrl, staxml)
+    returnCode = 0
 
     for n in staxml.Network:
       for s in n.Station:
@@ -477,6 +490,7 @@ def main():
               print "  logger: %s"%(rf[0],)
           else:
             print "  no logger match found"
+    return 0
 
 
 if __name__ == "__main__":
