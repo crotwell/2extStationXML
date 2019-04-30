@@ -17,8 +17,8 @@ import sys
 VERBOSE=False
 
 def usage():
-    print "python isnrl <file.staxml> <chanAId>"
-    print "python isnrl <file.staxml> --list"
+    print("python isnrl <file.staxml> <chanAId>")
+    print("python isnrl <file.staxml> --list")
 
 def initArgParser():
   parser = argparse.ArgumentParser(description='Check one channel in StationXML to see if same as NRL.')
@@ -37,7 +37,7 @@ def main():
         return
 
     if not os.path.exists(parseArgs.stationxml):
-        print "ERROR: can't fine stationxml file %s"%(parseArgs.stationxml,)
+        print("ERROR: can't fine stationxml file %s"%(parseArgs.stationxml,))
         return
 
     # validate with SIS validator
@@ -45,21 +45,21 @@ def main():
 
 
     if os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') and os.path.exists('validator/ValidateStationXml.class'):
-        print "Validating xml..."
+        print("Validating xml...")
         try:
             validateOut = subprocess.check_output(['java', '-cp', 'validator:xerces-2_11_0-xml-schema-1.1-beta/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.', 'ValidateStationXml', '-i', parseArgs.stationxml])
         except subprocess.CalledProcessError as e:
             validateOut = "error calling process: " + e.output
         validateOut = validateOut.strip()
         if not validateOut == '0':
-            print "ERROR: invalid stationxml document, errors: '%s'"%(validateOut,)
+            print("ERROR: invalid stationxml document, errors: '%s'"%(validateOut,))
             return
         else:
-            print "OK"
+            print("OK")
     else:
-        print """
+        print("""
 ERROR: Can't find validator: %s %s
-            
+
             wget http://mirror.cc.columbia.edu/pub/software/apache//xerces/j/binaries/Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
             tar zxf Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
             wget http://maui.gps.caltech.edu/SIStrac/raw-attachment/wiki/SIS/Code/validator.tar.gz
@@ -67,7 +67,7 @@ ERROR: Can't find validator: %s %s
 
 We assume the directories validator and xerces-2_11_0-xml-schema-1.1-beta
 are in current directory for validation.
-            """%(os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') , os.path.exists('validator/ValidateStationXml.class'))
+            """%(os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') , os.path.exists('validator/ValidateStationXml.class')))
 
         return
 
@@ -96,32 +96,36 @@ are in current directory for validation.
 
     if parseArgs.sensordir:
         nrlSubdir = "%s/sensors/%s"%(parseArgs.nrl, parseArgs.sensordir)
-        if VERBOSE: print "walk %s"%(nrlSubdir,)
+        if VERBOSE: print("walk %s"%(nrlSubdir,))
         for root, dirs, files in os.walk(nrlSubdir):
+          if '.svn' in dirs:
+            dirs.remove('.svn')
           for respfile in files:
             if respfile.startswith("RESP"):
-                if VERBOSE: print "try %s"%(respfile,)
+                if VERBOSE: print("try %s"%(respfile,))
                 r = checkNRL.loadResp(os.path.join(root, respfile))
                 result = checkNRL.areSimilarSensor(c.Response, r)
                 if result[0]:
-                    print "MATCH %s match %s"%(chanCode, respfile,)
+                    print("MATCH %s match %s"%(chanCode, respfile,))
                 else:
-                    print "FAIL %s match %s: %s"%(chanCode, respfile, result[1])
+                    print("FAIL %s match %s: %s"%(chanCode, respfile, result[1]))
 
 
     if parseArgs.loggerdir:
         nrlSubdir = "%s/dataloggers/%s"%(parseArgs.nrl, parseArgs.loggerdir)
-        if VERBOSE: print "walk %s"%(nrlSubdir,)
+        if VERBOSE: print("walk %s"%(nrlSubdir,))
         for root, dirs, files in os.walk(nrlSubdir):
+          if '.svn' in dirs:
+            dirs.remove('.svn')
           for respfile in files:
             if respfile.startswith("RESP"):
-                if VERBOSE: print "try %s"%(respfile,)
+                if VERBOSE: print("try %s"%(respfile,))
                 r = checkNRL.loadResp(os.path.join(root, respfile))
                 result = checkNRL.areSimilarLogger(c.Response, r)
                 if result[0]:
-                    print "MATCH %s match %s"%(chanCode, respfile,)
+                    print("MATCH %s match %s"%(chanCode, respfile,))
                 else:
-                    print "FAIL %s match %s: %s"%(chanCode, respfile, result[1])
+                    print("FAIL %s match %s: %s"%(chanCode, respfile, result[1]))
 
 if __name__ == "__main__":
     sys.exit(main())

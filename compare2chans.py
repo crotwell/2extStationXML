@@ -13,8 +13,8 @@ import sys
 
 
 def usage():
-    print "python compare2chans <file.staxml> <chanAId> <chanBId>"
-    print "python compare2chans <file.staxml> --list"
+    print("python compare2chans <file.staxml> <chanAId> <chanBId>")
+    print("python compare2chans <file.staxml> --list")
 
 
 def main():
@@ -24,16 +24,16 @@ def main():
         usage()
         return
     if not os.path.isfile(args[0]):
-        print "Can't find file %s"%(args[0],)
+        print("Can't find file %s"%(args[0],))
         return
     staxml = sisxmlparser.parse(args[0])
     if args[1] == '--list':
-      print "--all channels--"
+      print("--all channels--")
       for n in staxml.Network:
         for s in n.Station:
           for c in s.Channel:
             cCode = checkNRL.getChanCodeId(n,s,c)
-            print cCode
+            print(cCode)
       return
 
     chanA = None
@@ -47,12 +47,12 @@ def main():
           if cCode == args[2]:
               chanB = c
     if chanA is None or chanB is None:
-        print "did not find channels: %s %s %s %s"%(chanA, chanB, args[1], args[2])
+        print("did not find channels: %s %s %s %s"%(chanA, chanB, args[1], args[2]))
         return
 
-    print "Sensor compare: %s"%(uniqResponses.areSameStageByIndex(chanA.Response, chanB.Response, 1),)
+    print("Sensor compare: %s"%(uniqResponses.areSameStageByIndex(chanA.Response, chanB.Response, 1),))
     result = uniqResponses.areSameResponse(chanA.Response, chanB.Response)
-    print result
+    print(result)
 
 
 

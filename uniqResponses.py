@@ -137,23 +137,23 @@ def areSameStageByIndex(respA, respB, stageIndex):
     result = areSameStage(respA.Stage[stageIndex+1], respB.Stage[stageIndex+1])
     if not result[0]:
         result = False, "Stage %d %s"%(stageIndex,result[1])
-        if VERBOSE: print result[0]
+        if VERBOSE: print(result[0])
         return result
     return True, "ok"
 
 def areSameResponse(respA, respB):
     stageA = getattr(respA, 'Stage', [])
     stageB = getattr(respB, 'Stage', [])
-    if VERBOSE: print "areSameResponse: "
+    if VERBOSE: print("areSameResponse: ")
     result = checkNRL.checkIntEqual("num stages", len(stageA), len(stageB))
     if not result[0]:
-        if VERBOSE: print "not same num stages %s %s %d %d"%(result[0], result[1], len(stageA), len(stageB))
+        if VERBOSE: print("not same num stages %s %s %d %d"%(result[0], result[1], len(stageA), len(stageB)))
         return result
     for i in range(0, len(stageA)):
         result = areSameStage(respA.Stage[i], respB.Stage[i])
         if not result[0]:
             result = False, "Stage %d %s"%(i+1,result[1])
-            if VERBOSE: print result[0]
+            if VERBOSE: print(result[0])
             return result
     return True, "ok"
 
@@ -164,7 +164,7 @@ def uniqueResponses(staxml):
         for c in s.Channel:
           chanCode = checkNRL.getChanCodeId(n, s, c)
           foundMatch = None
-          if VERBOSE: print "chanCode %s "%(chanCode, )
+          if VERBOSE: print("chanCode %s "%(chanCode, ))
 #          print "chanCode %s numStage = %d"%(chanCode, len(c.Response.Stage),)
           for uResp in uniqResponse:
 #              try:
@@ -174,20 +174,20 @@ def uniqueResponses(staxml):
 #                print "Error comparing %s, %s"%(uResp[0], e)
 #                result = False, " %s"%(e,)
 #                return
-              if VERBOSE: print "areSame %s: %s"%(result[0], result[1],)
+              if VERBOSE: print("areSame %s: %s"%(result[0], result[1],))
               if result[0]:
                   foundMatch = uResp
                   break
           if foundMatch is None:
               uniqResponse.append( ( chanCode, c.Response, [ chanCode] ) )
-              if VERBOSE: print "no match %d"%(len(uniqResponse),)
+              if VERBOSE: print("no match %d"%(len(uniqResponse),))
           else:
               foundMatch[2].append(chanCode)
-              if VERBOSE: print "found match %s  %s"%(chanCode, foundMatch[0])
+              if VERBOSE: print("found match %s  %s"%(chanCode, foundMatch[0]))
     return uniqResponse
 
 def usage():
-    print "python uniqueResponses <staxml>"
+    print("python uniqueResponses <staxml>")
 
 
 def main():
@@ -196,15 +196,15 @@ def main():
         usage()
         return
     if not os.path.isfile(args[0]):
-        print "Can't find file %s"%(args[0],)
+        print("Can't find file %s"%(args[0],))
         return
     staxml = sisxmlparser.parse(args[0])
-    print "Find unique responses"
+    print("Find unique responses")
     uniq = uniqueResponses(staxml)
-    print "NRL check unique responses"
+    print("NRL check unique responses")
     nrledUniq = checkNRL.checkRespListInNRL('nrl', uniq, 'logger_samp_rate.sort')
     numChans = 0
-    print "found %d uniq responses "%(len(uniq), )
+    print("found %d uniq responses "%(len(uniq), ))
     for x in nrledUniq:
       for xc in x[2]:
         sys.stdout.write("%s "%(xc,))
@@ -216,7 +216,7 @@ def main():
       for l in x[4]:
         sys.stdout.write("%s "%(l,))
 
-      print ""
+      print("")
 
 if __name__ == '__main__':
     main()

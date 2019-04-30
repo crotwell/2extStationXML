@@ -89,9 +89,9 @@ def cleanUnitName(inUnitName, changes):
     if inUnitName != outUnitName:
       changes['numChanges']+=1
       changes[inUnitName] = outUnitName
-      if VERBOSE: print "change %s to %s"%(inUnitName, outUnitName)
+      if VERBOSE: print("change %s to %s"%(inUnitName, outUnitName))
     if (not outUnitName in KNOWN_UNIT_SET):
-      print "WARNING: unknown unit: %s"%(inUnitName,)
+      print("WARNING: unknown unit: %s"%(inUnitName,))
     return outUnitName
 
 def cleanUnit(inUnit, changes):
@@ -165,7 +165,7 @@ def cleanUnitNames(staxml):
       for s in n.Station:
         for c in s.Channel:
           chanCode = checkNRL.getChanCodeId(n, s, c)
-          if VERBOSE: print "clean chanCode %s "%(chanCode, )
+          if VERBOSE: print("clean chanCode %s "%(chanCode, ))
           if hasattr(c, 'SignalUnits'):
               cleanUnit(c.SignalUnits, changes)
           if hasattr(c, 'CalibrationUnits'):
@@ -184,7 +184,7 @@ def cleanUnitNames(staxml):
     return changes
 
 def usage():
-    print "python cleanUnitNames <staxml>"
+    print("python cleanUnitNames <staxml>")
 
 
 def main():
@@ -192,20 +192,20 @@ def main():
     parseArgs = initArgParser()
     if parseArgs.verbose:
         VERBOSE=True
-        for k, v in vars(parseArgs).iteritems():
-            print "    Args: %s %s"%(k, v)
+        for k, v in vars(parseArgs).items():
+            print("    Args: %s %s"%(k, v))
     if parseArgs.stationxml:
         if not os.path.exists(parseArgs.stationxml):
-            print "ERROR: can't fine stationxml file %s"%(parseArgs.stationxml,)
+            print("ERROR: can't fine stationxml file %s"%(parseArgs.stationxml,))
             return
     staxml = sisxmlparser.parse(parseArgs.stationxml)
-    print "Clean unit names"
+    print("Clean unit names")
     changes = cleanUnitNames(staxml)
-    print "ok (%d changes)"%(changes['numChanges'],)
+    print("ok (%d changes)"%(changes['numChanges'],))
     if VERBOSE:
-        for k, v in changes.iteritems():
+        for k, v in changes.items():
             if k != 'numChanges':
-                print "    %s => %s"%(k, v)
+                print("    %s => %s"%(k, v))
     staxml.exportxml(parseArgs.outfile, 'FDSNStationXML', 'fsx', 0)
 
 if __name__ == '__main__':

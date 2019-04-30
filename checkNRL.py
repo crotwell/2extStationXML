@@ -26,16 +26,16 @@ def setVerbose(b):
     VERBOSE = b
 
 def usage():
-    print USAGE_TEXT
+    print(USAGE_TEXT)
     sys.exit(1)
 
 def _addBlocketteField(blockette, field, value):
 #    print "%s %s %s"%(blockette, field, value)
     if field in blockette:
-        if isinstance(blockette[field], (tuple, basestring)):
+        if isinstance(blockette[field], (tuple, str)):
             tmp = blockette[field]
             blockette[field] = [ tmp, value]
-        elif isinstance(blockette[field], (list,)):
+        elif isinstance(blockette[field], list):
             blockette[field].append(value)
         else:
             raise UnknownTypeInBlockette(blockette[field])
@@ -46,9 +46,9 @@ def _addBlocketteField(blockette, field, value):
 def _appendBlocketteField(blockette, field, value):
 #    print "%s %s %s"%(blockette, field, value)
     if field in blockette:
-        if isinstance(blockette[field], (tuple, basestring)):
+        if isinstance(blockette[field], (tuple, str)):
             raise Exception("can only append to lists fields "+blockette[field])
-        elif isinstance(blockette[field], (list,)):
+        elif isinstance(blockette[field], list):
             blockette[field].append(value)
         else:
             raise Exception("can only append to lists fields "+blockette[field])
@@ -133,7 +133,7 @@ def findRespBlockette(blockette, stage, blocketteType):
     for b in blockette:
         if b[TYPE] == blocketteType and stage == stageForBlockette(b):
            return b
-    if VERBOSE: print "can't find b%s for stage %s"%(blocketteType, stage)
+    if VERBOSE: print("can't find b%s for stage %s"%(blocketteType, stage))
     return None
 
 def checkStringEqual(reason, valA, valB):
@@ -162,17 +162,17 @@ def checkFloatEqual(reason, valA, valB, tolPercent):
 
 
 def checkItem(item):
-    if VERBOSE: print "check %s"%(item,)
+    if VERBOSE: print("check %s"%(item,))
     result = (False, "do not know how to check %s"%(item,))
     if len(item) == 4 and isinstance(item[1], (int,float)) and isinstance(item[2], (int,float)):
         result = checkFloatEqual(item[0], item[1], item[2], item[3])
     elif len(item) == 3 and isinstance(item[1], int) and isinstance(item[2], int):
         result = checkIntEqual(item[0], item[1], item[2])
-    elif len(item) == 3 and isinstance(item[1], basestring) and isinstance(item[2], basestring):
+    elif len(item) == 3 and isinstance(item[1], str) and isinstance(item[2], str):
         result = checkStringEqual(item[0], item[1], item[2])
     else:
         raise Exception("unknown check tuple %s"%(item,))
-    if VERBOSE and not result[0]: print "Fail item %s -> %s"%(item, result)
+    if VERBOSE and not result[0]: print("Fail item %s -> %s"%(item, result))
     return result
 
 def checkMultiple(list):
@@ -286,7 +286,7 @@ def areSimilarLogger(staxmlResp, nrlResp):
     if atodStageStaxml > 1:
         preampStageNRL = atodStageNRL - 1
         preampStageStaxml = atodStageStaxml - 1
-        if VERBOSE: print "preamp logger stage is %d"%(preampStageNRL,)
+        if VERBOSE: print("preamp logger stage is %d"%(preampStageNRL,))
         b58 = findRespBlockette(nrlResp, preampStageNRL, '058')
         if b58 is not None:
             result = areSimilarStageB58(staxmlResp.Stage[preampStageStaxml-1], b58)
@@ -300,7 +300,7 @@ def areSimilarLogger(staxmlResp, nrlResp):
     if b58 is None:
         result = False,"stage %s blockette58 not found"%(loggerStageNRL,)
     else:
-        if VERBOSE: print "logger stage is %d"%(loggerStageNRL,)
+        if VERBOSE: print("logger stage is %d"%(loggerStageNRL,))
         while b58 is not None:
             if b58 is not None:
               result = areSimilarStageB58(staxmlResp.Stage[loggerStageStaxml-1], b58)
@@ -329,9 +329,9 @@ def areSimilarLogger(staxmlResp, nrlResp):
 
 def printBlockettes(r):
     for b in r:
-      print "Blockette %s ##########"%(b['type'],)
-      for key in sorted(b.iterkeys()):
-        print "  %s  %s"%(key, b[key])
+      print("Blockette %s ##########"%(b['type'],))
+      for key in sorted(b.keys()):
+        print("  %s  %s"%(key, b[key]))
 
 def getChanCodeId(n, s, c):
         return "%s.%s.%s.%s_%s"%(n.code, s.code, c.locationCode, c.code, c.startDate.isoformat())
@@ -340,9 +340,11 @@ def saveFinalSampRate(nrlDir):
     outfile = open(os.path.join(nrlDir, 'logger_sample_rate.sort'), 'w')
     dataloggerDir = os.path.join(nrlDir, 'dataloggers')
     for root, dirs, files in os.walk(dataloggerDir):
+      if '.svn' in dirs:
+        dirs.remove('.svn')
       for respfile in files:
         if respfile.startswith("RESP"):
-            if VERBOSE: print "try %s"%(respfile,)
+            if VERBOSE: print("try %s"%(respfile,))
             r = loadResp(os.path.join(root, respfile))
             finalSampRate = 0
             for b in r:
@@ -362,11 +364,13 @@ def possibleSampRateMatch(respfile, staxml, loggerRateIndex):
 
 def checkRespInNRL(nrlDir, staxml, areSimilarFunc, loggerRateIndex = None):
     matchDict = dict()
-    if VERBOSE: print "walk %s"%(nrlDir,)
+    if VERBOSE: print("walk %s"%(nrlDir,))
     for root, dirs, files in os.walk(nrlDir):
+      if '.svn' in dirs:
+        dirs.remove('.svn')
       for respfile in files:
         if respfile.startswith("RESP") and (loggerRateIndex is None or possibleSampRateMatch(os.path.join(root, respfile), staxml, loggerRateIndex)):
-            if VERBOSE: print "try %s"%(respfile,)
+            if VERBOSE: print("try %s"%(respfile,))
             r = loadResp(os.path.join(root, respfile))
             for n in staxml.Network:
               for s in n.Station:
@@ -375,12 +379,12 @@ def checkRespInNRL(nrlDir, staxml, areSimilarFunc, loggerRateIndex = None):
                   if hasattr(c, 'Response'):
                     result = areSimilarFunc(c.Response, r)
                     if result[0]:
-                      if VERBOSE: print "%s found match %s"%(chanCode, respfile,)
+                      if VERBOSE: print("%s found match %s"%(chanCode, respfile,))
                       if not chanCode in matchDict:
                           matchDict[chanCode] = []
                       matchDict[chanCode].append( ( os.path.join(root, respfile), result[2], result[3] ) )
                     else:
-                      if VERBOSE: print "FAIL %s match %s: %s"%(chanCode, respfile, result[1])
+                      if VERBOSE: print("FAIL %s match %s: %s"%(chanCode, respfile, result[1]))
     return matchDict
 
 def checkRespListInNRL(nrlDir, respList, loggerRateIndex = None):
@@ -393,22 +397,26 @@ def checkRespListInNRL(nrlDir, respList, loggerRateIndex = None):
     outList = []
     for name, chanResp, chanCodeList in respList:
         outList.append( [ name, chanResp, chanCodeList, [], [] ] )
-    if VERBOSE: print "walk %s"%(nrlDir,)
+    if VERBOSE: print("walk %s"%(nrlDir,))
     for root, dirs, files in os.walk("%s/sensors"%(nrlDir,)):
+      if '.svn' in dirs:
+        dirs.remove('.svn')
       for respfile in files:
         if respfile.startswith("RESP"):
-            if VERBOSE: print "try %s"%(respfile,)
+            if VERBOSE: print("try %s"%(respfile,))
             r = loadResp(os.path.join(root, respfile))
             for respTuple in outList:
                 name, chanResp, chanCodeList, sss, lll = respTuple
                 resultSensor = areSimilarSensor(chanResp, r)
                 if resultSensor[0]:
-                  if VERBOSE: print "%s found Sensor match %s"%(name, respfile,)
+                  if VERBOSE: print("%s found Sensor match %s"%(name, respfile,))
                   sss.append( ( os.path.join(root, respfile), resultSensor[2], resultSensor[3] ) )
     for root, dirs, files in os.walk("%s/dataloggers"%(nrlDir,)):
+      if '.svn' in dirs:
+        dirs.remove('.svn')
       for respfile in files:
         if respfile.startswith("RESP"):
-            if VERBOSE: print "try %s"%(respfile,)
+            if VERBOSE: print("try %s"%(respfile,))
             r = None # delay loading until a samp rate match
             for respTuple in outList:
                 name, chanResp, chanCodeList, sss, lll = respTuple
@@ -417,10 +425,10 @@ def checkRespListInNRL(nrlDir, respList, loggerRateIndex = None):
                         r = loadResp(os.path.join(root, respfile))
                     resultLogger = areSimilarLogger(chanResp, r)
                     if resultLogger[0]:
-                      if VERBOSE: print "%s found logger match %s"%(name, respfile,)
+                      if VERBOSE: print("%s found logger match %s"%(name, respfile,))
                       lll.append( ( os.path.join(root, respfile), resultLogger[2], resultLogger[3], resultLogger[4] ) )
                     else:
-                      if VERBOSE: print "FAIL %s match %s: %s"%(chanCode, respfile, result[1])
+                      if VERBOSE: print("FAIL %s match %s: %s"%(chanCode, respfile, result[1]))
     return outList
 
 
@@ -436,11 +444,11 @@ def checkNRL(nrlDir, staxml):
     obsolete, faster to check for unique responses first, then walk the nrl
     '''
     loggerRateIndex = loadRespfileSampleRate(nrlDir+'/logger_sample_rate.sort')
-    print "loggerRateIndex has %d entries"%(len(loggerRateIndex,))
+    print("loggerRateIndex has %d entries"%(len(loggerRateIndex,)))
 
-    print "Sensor Check"
+    print("Sensor Check")
     matchSensor = checkRespInNRL("%s/sensors"%(nrlDir,), staxml, areSimilarSensor)
-    print "Logger Check"
+    print("Logger Check")
     matchLogger = checkRespInNRL("%s/dataloggers"%(nrlDir,), staxml, areSimilarLogger, loggerRateIndex)
 #    loggerRateIndex = loadRespfileSampleRate('rt130_logger_samp_rate.sort')
 #    matchLogger = checkNRL("nrl_rt130/dataloggers", staxml, areSimilarLogger, loggerRateIndex)
@@ -456,7 +464,7 @@ def main():
     parseArgs = parser.parse_args()
     if parseArgs.verbose:
         setVerbose(True)
-    print("verbose "+str(VERBOSE))
+    print(("verbose "+str(VERBOSE)))
     args = sys.argv[1:]
     if len(args) == 0:
         usage()
@@ -465,7 +473,7 @@ def main():
         saveFinalSampRate(parseArgs.nrl)
         return
     if not os.path.isfile(parseArgs.stationxml):
-        print "Can't find file %s"%(parseArgs.stationxml,)
+        print("Can't find file %s"%(parseArgs.stationxml,))
         return
     staxml = sisxmlparser.parse(parseArgs.stationxml)
     (matchSensor, matchLogger) = checkNRL(parseArgs.nrl, staxml)
@@ -475,22 +483,22 @@ def main():
       for s in n.Station:
         for c in s.Channel:
           chanCode = getChanCodeId(n, s, c)
-          print "%s matches:"%(chanCode,)
+          print("%s matches:"%(chanCode,))
           if chanCode in matchSensor and len(matchSensor[chanCode])>0:
             if len(matchSensor[chanCode]) > 1 :
-              print "  %s MultipleMatch %d  ##############"%(chanCode, len(matchSensor[chanCode]),)
+              print("  %s MultipleMatch %d  ##############"%(chanCode, len(matchSensor[chanCode]),))
             for rf in matchSensor[chanCode]:
-              print "  sensor: %s"%(rf[0],)
+              print("  sensor: %s"%(rf[0],))
           else:
-            print "  no sensor match found"
+            print("  no sensor match found")
           if chanCode in matchLogger and len(matchLogger[chanCode])>0:
             if len(matchLogger[chanCode]) > 1 :
-              print "  %s MultipleMatch %d  ##############"%(chanCode, len(matchLogger[chanCode]),)
+              print("  %s MultipleMatch %d  ##############"%(chanCode, len(matchLogger[chanCode]),))
             for rf in matchLogger[chanCode]:
-              print "  logger: %s"%(rf[0],)
+              print("  logger: %s"%(rf[0],))
           else:
-            print "  no logger match found"
-    return 0
+            print("  no logger match found")
+    return returnCode
 
 
 if __name__ == "__main__":
