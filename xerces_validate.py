@@ -35,7 +35,7 @@ wget -O sis_extension_2.2.xsd https://anss-sis.scsn.org/xml/ext-stationxml/2.2/s
             # 'xmlvalidator:xerces-2_12_0-xml-schema-1.1/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.'
             validateOut = subprocess.check_output(['java', '-cp', classpath, 'ValidateStationXml', '-s', SCHEMA_FILE, '-i', stationxml])
         except subprocess.CalledProcessError as e:
-            validateOut = "error calling process: " + e.output
+            validateOut = "error calling process: " + str(e.output)
         validateOut = validateOut.strip()
         if not validateOut == b'0':
             print("ERROR: invalid stationxml document, errors: '%s'"%(validateOut,))
