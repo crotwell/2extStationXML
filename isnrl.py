@@ -3,7 +3,7 @@
 check if single channel sensor response in NRL
 '''
 import checkNRL as checkNRL
-import sisxmlparser2_0 as sisxmlparser
+import sisxmlparser2_2 as sisxmlparser
 import uniqResponses as uniqResponses
 
 import argparse
