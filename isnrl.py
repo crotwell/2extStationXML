@@ -5,6 +5,7 @@ check if single channel sensor response in NRL
 import checkNRL as checkNRL
 import sisxmlparser2_2 as sisxmlparser
 import uniqResponses as uniqResponses
+from xerces_validate import xerces_validate, SCHEMA_FILE
 
 import argparse
 import datetime
@@ -13,8 +14,8 @@ import re
 import subprocess
 import sys
 
-#VERBOSE=True
 VERBOSE=False
+#VERBOSE=True
 
 def usage():
     print("python isnrl <file.staxml> <chanAId>")
@@ -28,10 +29,14 @@ def initArgParser():
   parser.add_argument('--sensordir', help="Sensor manufacturor subdir of NRL, to limit number of files parsed.")
   parser.add_argument('--loggerdir', help="Logger manufacturor subdir of NRL, to limit number of files parsed.")
   parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
+  parser.add_argument('-v', '--verbose', action='store_true', help="verbose output")
   return parser.parse_args()
 
 def main():
     parseArgs = initArgParser()
+
+    if parseArgs.verbose:
+        VERBOSE=True
 
     if not parseArgs.stationxml:
         return
@@ -42,33 +47,7 @@ def main():
 
     # validate with SIS validator
     # http://maui.gps.caltech.edu/SIStrac/wiki/SIS/Code
-
-
-    if os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') and os.path.exists('validator/ValidateStationXml.class'):
-        print("Validating xml...")
-        try:
-            validateOut = subprocess.check_output(['java', '-cp', 'validator:xerces-2_11_0-xml-schema-1.1-beta/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.', 'ValidateStationXml', '-i', parseArgs.stationxml])
-        except subprocess.CalledProcessError as e:
-            validateOut = "error calling process: " + e.output
-        validateOut = validateOut.strip()
-        if not validateOut == '0':
-            print("ERROR: invalid stationxml document, errors: '%s'"%(validateOut,))
-            return
-        else:
-            print("OK")
-    else:
-        print("""
-ERROR: Can't find validator: %s %s
-
-            wget http://mirror.cc.columbia.edu/pub/software/apache//xerces/j/binaries/Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
-            tar zxf Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
-            wget http://maui.gps.caltech.edu/SIStrac/raw-attachment/wiki/SIS/Code/validator.tar.gz
-            tar ztf validator.tar.gz
-
-We assume the directories validator and xerces-2_11_0-xml-schema-1.1-beta
-are in current directory for validation.
-            """%(os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') , os.path.exists('validator/ValidateStationXml.class')))
-
+    if not xerces_validate(parseArgs.stationxml):
         return
 
     # Parse an xml file

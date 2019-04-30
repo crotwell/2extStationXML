@@ -6,6 +6,7 @@ import checkNRL as checkNRL
 import sisxmlparser2_2 as sisxmlparser
 import uniqResponses as uniqResponses
 import cleanUnitNames as cleanUnitNames
+from xerces_validate import xerces_validate, SCHEMA_FILE
 
 import argparse
 import datetime
@@ -24,7 +25,6 @@ Usage: python <Parser>.py <in_xml_file>
 
 NRL_PREFIX = "http://ds.iris.edu/NRL"
 
-SCHEMA_FILE = "sis_extension_2.2.xsd"
 
 def usage():
     print(USAGE_TEXT)
@@ -277,58 +277,7 @@ def main():
             print("    Args: %s %s"%(k, v))
     sisNamespace = parseArgs.namespace
     if parseArgs.stationxml:
-
-        if not os.path.exists(parseArgs.stationxml):
-            print("ERROR: can't fine stationxml file %s"%(parseArgs.stationxml,))
-            return
-
-        # validate with SIS validator
-        # http://wiki.anss-sis.scsn.org/SIStrac/wiki/SIS/Code
-
-        if not os.path.exists(SCHEMA_FILE):
-            print("""
-Can't find schema file sis_extension_2.2.xsd
-
-    wget -O sis_extension_2.2.xsd https://anss-sis.scsn.org/xml/ext-stationxml/2.2/sis_extension.xsd
-""")
-            return;
-
-
-        if os.path.exists('xerces-2_12_0-xml-schema-1.1') and os.path.exists('xmlvalidator/ValidateStationXml.class'):
-            print("Validating xml...")
-            try:
-                classpath = '.:xmlvalidator'
-                xercesDir = 'xerces-2_12_0-xml-schema-1.1'
-                jarList = ['xercesImpl.jar',
-                           'xml-apis.jar',
-                           'serializer.jar',
-                           'org.eclipse.wst.xml.xpath2.processor_1.2.0.jar']
-                for j in jarList:
-                    classpath = classpath+':'+xercesDir+"/"+j
-
-                # 'xmlvalidator:xerces-2_12_0-xml-schema-1.1/xercesImpl.jar:xerces-2_11_0-xml-schema-1.1-beta/xml-apis.jar:xerces-2_11_0-xml-schema-1.1-beta/serializer.jar:xerces-2_11_0-xml-schema-1.1-beta/org.eclipse.wst.xml.xpath2.processor_1.1.0.jar:.'
-                validateOut = subprocess.check_output(['java', '-cp', classpath, 'ValidateStationXml', '-s', SCHEMA_FILE, '-i', parseArgs.stationxml])
-            except subprocess.CalledProcessError as e:
-                validateOut = "error calling process: " + e.output
-            validateOut = validateOut.strip()
-            if not validateOut == b'0':
-                print("ERROR: invalid stationxml document, errors: '%s'"%(validateOut,))
-                return
-            else:
-                print("OK")
-        else:
-            print("""
-ERROR: Can't find validator: %s %s
-
-            wget http://mirror.cc.columbia.edu/pub/software/apache//xerces/j/binaries/Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
-            tar zxf Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz
-            wget http://maui.gps.caltech.edu/SIStrac/raw-attachment/wiki/SIS/Code/validator.tar.gz
-            tar ztf validator.tar.gz
-
-We assume the directories validator and xerces-2_11_0-xml-schema-1.1-beta
-are in current directory for validation.
-            """%(os.path.exists('xerces-2_11_0-xml-schema-1.1-beta') , os.path.exists('validator/ValidateStationXml.class')))
-
+        if not xerces_validate(parseArgs.stationxml):
             return
 
         # Parse an xml file
