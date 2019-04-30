@@ -62,6 +62,8 @@ def hasCap(s): return s != s.lower()
 
 UNITS_WITH_CAPS = set(filter(hasCap, KNOWN_UNITS))
 
+UNITS_WITH_CAPS_AS_UPPER = {x.upper() : x for x in UNITS_WITH_CAPS}
+
 KNOWN_UNIT_SET = set(KNOWN_UNITS)
 
 
@@ -76,9 +78,14 @@ def initArgParser():
   return parser.parse_args()
 
 def cleanUnitName(inUnitName, changes):
-    if inUnitName in UNITS_WITH_CAPS:
+    if inUnitName != inUnitName.upper():
+        # some lower case, so keep as is
         unit = inUnitName
+    elif inUnitName in UNITS_WITH_CAPS_AS_UPPER:
+        # all upper, but matches something we have with both upper and lower
+        unit = UNITS_WITH_CAPS_AS_UPPER[inUnitName]
     else:
+        # make it lower and hope
         unit = inUnitName.lower()
     outUnitName = unit
 # not sure if I really want to fix these...
