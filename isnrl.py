@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 
+global VERBOSE
 VERBOSE=False
 #VERBOSE=True
 
@@ -33,6 +34,7 @@ def initArgParser():
   return parser.parse_args()
 
 def main():
+    global VERBOSE
     parseArgs = initArgParser()
 
     if parseArgs.verbose:
