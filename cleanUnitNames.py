@@ -4,7 +4,7 @@ clean unit names in fdsn stationxml file
 see https://github.com/iris-edu/StationXML-Validator/wiki/Unit-name-overview-for-IRIS-StationXML-validator
 '''
 import checkNRL as checkNRL
-import sisxmlparser2_2 as sisxmlparser
+import sisxmlparser2_2_py3 as sisxmlparser
 
 import argparse
 import datetime
