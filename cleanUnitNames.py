@@ -56,6 +56,12 @@ KNOWN_UNITS = [ "meter", "m", "m/s", "m/s**2",
 "unitless",
 "unknown" ]
 
+manualFix = {
+    "volts":"V",
+    "degc":"degC",
+    "sec":"s",
+    "c":"degC"
+}
 
 #UNITS_WITH_CAPS = set([ "K","Pa","kPa","hPa","A","mA","V","mV","uV","Hz","N","J","T","nT","W","mW","V/m","W/m**2", "degC"])
 def hasCap(s): return s != s.lower()
@@ -89,11 +95,9 @@ def cleanUnitName(inUnitName, changes):
         unit = inUnitName.lower()
     outUnitName = unit
 # not sure if I really want to fix these...
-    if (unit.lower() == 'degc'):
-        outUnitName = 'degC'
-    if (unit.lower() == 'volts'):
-        outUnitName = 'V'
-        
+    if outUnitName in manualFix:
+        outUnitName = manualFix[outUnitName]
+
     if inUnitName != outUnitName:
       changes['numChanges']+=1
       changes[inUnitName] = outUnitName
