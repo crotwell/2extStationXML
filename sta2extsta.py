@@ -98,11 +98,13 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
 
   oldResponse = c.Response
   c.Response = sisxmlparser.SISResponseType()
-  if oldResponse.InstrumentSensitivity != None:
+  if hasattr(oldResponse, 'InstrumentSensitivity'):
       c.Response.InstrumentSensitivity = oldResponse.InstrumentSensitivity
+  elif hasattr(oldResponse, 'InstrumentPolynomial'):
+      c.Response.InstrumentPolynomial = oldResponse.InstrumentPolynomial
   else:
       # need to calculate overall sensitivity
-      print("WARNING: %s does not have InstrumentSensitivity, this is required in SIS."%(chanCodeId,))
+      print("WARNING: %s does not have InstrumentSensitivity or InstrumentPolynomial, this is required in SIS."%(chanCodeId,))
 
   if hasattr(c, 'Sensor'):
       #sometimes equipment comment in Sensor.Type
@@ -134,7 +136,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                   if len(oldResponse.Stage) == 1:
                       # but SOH channels sometimes have only 1 stage, so no sensor
                       pass
-                  if VERBOSE: print(" sensor not NRL, use named resp: %s"%(xcode,))
+                  if VERBOSE: print("        sensor not NRL, use named resp: %s"%(xcode,))
                   # not nrl, so use named response
 
                   sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType2()
@@ -148,16 +150,19 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                       sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].PolesZeros.InputUnits
                       sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].PolesZeros.OutputUnits
                   elif hasattr(oldResponse.Stage[0], 'Coefficients'):
-                      print("sensor has no PolesZeros in stage, use Coefficients: {}".format(xcode))
+                      if VERBOSE: print("         sensor has no PolesZeros in stage, use Coefficients: {}".format(xcode))
                       sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].Coefficients.InputUnits
                       sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].Coefficients.OutputUnits
+                  else:
+                      if VERBOSE: print("         WARNING: sensor has no PolesZeros or Coefficients in stage: {}".format(xcode))
+
 
               else:
                   if len(sss) > 1:
-                    print("WARNING: %s has more than one matching sensor response in NRL, using first"%(chanCodeId,))
+                    print("       WARNING: %s has more than one matching sensor response in NRL, using first"%(chanCodeId,))
                     for temps in sss:
-                      print("  %s"%(temps[0],))
-                  if VERBOSE: print(" sensor in NRL: %s"%(xcode,))
+                      print("         %s"%(temps[0],))
+                  if VERBOSE: print("        sensor in NRL: %s"%(xcode,))
                   sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
                   sensorSubResponse.RESPFile.ValueOf = sss[0][0].replace("nrl", NRL_PREFIX)
                   # stage To/From not required for NRL responses, use SIS rules
@@ -165,7 +170,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                   #sensorSubResponse.RESPFile.stageTo = 1
               # datalogger #######
               if len(lll) == 0:
-                  if VERBOSE: print(" logger not NRL, use named resp: %s"%(xcode,))
+                  if VERBOSE: print("        logger not NRL, use named resp: %s"%(xcode,))
                   # not nrl, so use named response
                   if isOnlyGainStage(namedResponse, 2):
                       preampSubResponse.PreampGain = namedResponse.Stage[1].StageGain.Value
@@ -194,10 +199,10 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                       loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
               else:
                   if len(lll) > 1:
-                    print("WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,))
+                    print("       WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,))
                     for templ in lll:
-                      print("  %s"%(templ[0],))
-                  if VERBOSE: print(" logger in NRL: %s"%(xcode,))
+                      print("         %s"%(templ[0],))
+                  if VERBOSE: print("        logger in NRL: %s"%(xcode,))
                   loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
                   loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
                   # stage To/From not required for NRL responses, use SIS rules
