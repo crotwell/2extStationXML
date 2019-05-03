@@ -91,8 +91,9 @@ def cleanUnitName(inUnitName, changes):
 # not sure if I really want to fix these...
     if (unit.lower() == 'degc'):
         outUnitName = 'degC'
-#    if (unit == 'degC'): outUnitName = 'celsius'
-#    if (unit == 'count' or unit == 'counts'): outUnitName = 'count'
+    if (unit.lower() == 'volts'):
+        outUnitName = 'V'
+        
     if inUnitName != outUnitName:
       changes['numChanges']+=1
       changes[inUnitName] = outUnitName
