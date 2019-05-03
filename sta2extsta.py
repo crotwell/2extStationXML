@@ -65,13 +65,23 @@ def isAtoDStage(namedResponse, sNum):
     for stage in namedResponse.Stage:
        if stage.number == sNum:
            break
-    if hasattr(stage, 'Coefficients') and hasattr(stage, 'Decimation'):
-       if hasattr(stage.Coefficients, 'InputUnits') and stage.Coefficients.InputUnits.Name == 'V' and \
-           hasattr(stage.Coefficients, 'OutputUnits') and \
-           (stage.Coefficients.OutputUnits.Name == 'count' or stage.Coefficients.OutputUnits.Name == 'counts'):
-           return True
-    #print "Coeff: %s  Dec:%s  In:%s  Out: %s"%(hasattr(stage, 'Coefficients'), hasattr(stage, 'Decimation'), stage.Coefficients.InputUnits.Name, stage.Coefficients.OutputUnits.Name)
-    return False
+    reason = ""
+    if not hasattr(stage, 'Coefficients'):
+        reason = "Stage {}={} does not have Coefficients".format(sNum, stage.number)
+    elif not hasattr(stage, 'Decimation'):
+        reason = "Stage {}={} does not have Decimation".format(sNum, stage.number)
+    elif not hasattr(stage.Coefficients, 'InputUnits'):
+        reason = "Stage {}={} does not have InputUnits".format(sNum, stage.number)
+    elif not hasattr(stage.Coefficients, 'OutputUnits'):
+        reason = "Stage {}={} does not have OutputUnits".format(sNum, stage.number)
+    elif not (stage.Coefficients.InputUnits.Name == 'V' or stage.Coefficients.InputUnits.Name == 'volt'):
+        reason = "Stage {}={} InputUnits {} are not V or volt".format(sNum, stage.number, stage.Coefficients.InputUnits.Name)
+    elif not (stage.Coefficients.OutputUnits.Name == 'count' or stage.Coefficients.OutputUnits.Name == 'counts'):
+        reason = "Stage {}={} InputUnits {} are not V or volt".format(sNum, stage.number, stage.Coefficients.OutputUnits.Name)
+    else:
+        reason = ""
+        return True, reason
+    return False, reason
 
 def isOnlyGainStage(namedResponse, sNum):
     for stage in namedResponse.Stage:
@@ -180,8 +190,10 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
                       loggerSubResponse.sequenceNumber = 3
                   if isSimpleSOHSingleStage(namedResponse):
                       atodSubResponse.sequenceNumber = 1
-                  elif not isAtoDStage(namedResponse, atodSubResponse.sequenceNumber):
-                      raise Exception('Expected AtoD stage as %d, but does not look like V to count Cefficients: %s'%(loggerSubResponse.sequenceNumber, chanCodeId))
+                  else:
+                      isAtoD, isAtoDReason = isAtoDStage(namedResponse, atodSubResponse.sequenceNumber)
+                      if not isAtoD:
+                          raise Exception('Expected AtoD stage as {}, but does not look like V to count Coefficients: {}, {}'.format(loggerSubResponse.sequenceNumber, chanCodeId, isAtoDReason))
                   atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
                   atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
                   atodOld = namedResponse.Stage[atodSubResponse.sequenceNumber-1]
