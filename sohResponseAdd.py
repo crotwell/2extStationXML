@@ -33,7 +33,7 @@ def makeUnityResponse(c, chanCode, changes, inputunits='count'):
             resp.InstrumentSensitivity.InputUnits = sisxmlparser.UnitsType()
             resp.InstrumentSensitivity.InputUnits.Name = inputunits
         else:
-            inputunits = resp.InstrumentSensitivity.inputUnits.Name
+            inputunits = resp.InstrumentSensitivity.InputUnits.Name
         if not hasattr(resp.InstrumentSensitivity, 'OutputUnits'):
             resp.InstrumentSensitivity.OutputUnits = sisxmlparser.UnitsType()
             resp.InstrumentSensitivity.OutputUnits.Name = 'count'
