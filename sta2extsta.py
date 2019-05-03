@@ -267,7 +267,7 @@ def createResponseDict(prototypeChan, s, sisNamespace):
 
 
 def main():
-    VERBOSE = False
+    global VERBOSE
     sisNamespace = "TESTING"
     parseArgs = initArgParser()
     print("in main")
