@@ -83,6 +83,45 @@ def isAtoDStage(namedResponse, sNum):
         return True, reason
     return False, reason
 
+def findAtoDStage(namedResponse):
+    for stage in namedResponse.Stage:
+        isAtoD, isAtoDReason = isAtoDStage(namedResponse, stage.number)
+        if isAtoD:
+            return stage.number
+    return -1
+
+def isPreampStage(namedResponse, sNum):
+    for stage in namedResponse.Stage:
+       if stage.number == sNum:
+           break
+    reason = ""
+    if isOnlyGainStage(namedResponse, sNum):
+        return True, ""
+    elif not hasattr(stage, 'PolesZeros'):
+        reason = "Stage {}={} not gain only and does not have PolesZeros".format(sNum, stage.number)
+    elif hasattr(stage, 'Decimation'):
+        reason = "Stage {}={} has Decimation".format(sNum, stage.number)
+    elif not hasattr(stage.PolesZeros, 'InputUnits'):
+        reason = "Stage {}={} does not have InputUnits".format(sNum, stage.number)
+    elif not hasattr(stage.PolesZeros, 'OutputUnits'):
+        reason = "Stage {}={} does not have OutputUnits".format(sNum, stage.number)
+    elif not (stage.PolesZeros.InputUnits.Name == 'V' or stage.PolesZeros.InputUnits.Name == 'volt'):
+        reason = "Stage {}={} InputUnits {} are not V or volt".format(sNum, stage.number, stage.PolesZeros.InputUnits.Name)
+    elif not (stage.PolesZeros.OutputUnits.Name == 'V' or stage.PolesZeros.OutputUnits.Name == 'volt'):
+        reason = "Stage {}={} OutputUnits {} are not V or volt".format(sNum, stage.number, stage.PolesZeros.OutputUnits.Name)
+    else:
+        reason = ""
+        return True, reason
+    return False, reason
+
+
+def findPreampStage(namedResponse):
+    for stage in namedResponse.Stage:
+        isPreamp, isPreampReason = isPreampStage(namedResponse, stage.number)
+        if isPreamp:
+            return stage.number
+    return -1
+
 def isOnlyGainStage(namedResponse, sNum):
     for stage in namedResponse.Stage:
        if stage.number == sNum:
@@ -182,15 +221,22 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
               if len(lll) == 0:
                   if VERBOSE: print("        logger not NRL, use named resp: %s"%(xcode,))
                   # not nrl, so use named response
-                  if isOnlyGainStage(namedResponse, 2):
-                      preampSubResponse.PreampGain = namedResponse.Stage[1].StageGain.Value
-                  else:
-                      preampSubResponse = None
-                      atodSubResponse.sequenceNumber = 2
-                      loggerSubResponse.sequenceNumber = 3
                   if isSimpleSOHSingleStage(namedResponse):
+                      # simple 1 stage, coeff count->count stage
                       atodSubResponse.sequenceNumber = 1
                   else:
+                      preampStage = findPreampStage(namedResponse)
+                      if preampStage > 0:
+                          preampSubResponse.PreampGain = namedResponse.Stage[preampStage-1].StageGain.Value
+                          if hasattr(namedResponse.Stage[preampStage-1], 'PolesZeros'):
+                              preampSubResponse.PolesZeros = namedResponse.Stage[preampStage-1].PolesZeros
+                      else:
+                          preampSubResponse = None
+                          atodSubResponse.sequenceNumber = findAtoDStage(namedResponse)
+                          if atodSubResponse.sequenceNumber < 0:
+                              raise Exception('Cannot find AtoD stage in {}'.format(namedResponse))
+                          loggerSubResponse.sequenceNumber = atodSubResponse.sequenceNumber +1
+
                       isAtoD, isAtoDReason = isAtoDStage(namedResponse, atodSubResponse.sequenceNumber)
                       if not isAtoD:
                           raise Exception('Expected AtoD stage as {}, but does not look like V to count Coefficients: {}, {}'.format(loggerSubResponse.sequenceNumber, chanCodeId, isAtoDReason))
@@ -455,21 +501,14 @@ def main():
                 logger.FilterSequence.SISNamespace = sisNamespace
                 logger.FilterSequence.FilterStage = []
                 loggerStartStage = 2
-                if isOnlyGainStage(namedResponse, 2):
-                    #stage 2 is gain only, so assume preamp "
-                    loggerStartStage = 3
                 # array index is 0-base, stage number is 1-base, so -1
                 # first logger stage should be AtoD stage and SIS wants
                 # that separate from the filter chain
-                if not hasattr(namedResponse.Stage[loggerStartStage-1], "Coefficients"):
-                   print("ERROR: expecting AtoD stage, which should have Coefficients, but not found. %d %s"%(loggerStartStage, prototypeChan))
-                   return
-                if not (namedResponse.Stage[loggerStartStage-1].Coefficients.InputUnits.Name == 'V' and (namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name == 'counts' or namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name == 'count')):
-                   # no AtoD???, quit with error
-                   print("ERROR: Was expecting AtoD stage, V to count, but found %s to %s, %s"%(namedResponse.Stage[loggerStartStage-1].Coefficients.InputUnits.Name, namedResponse.Stage[loggerStartStage-1].Coefficients.OutputUnits.Name, prototypeChan))
-                   return
+                if not (isPreampStage(namedResponse, loggerStartStage) and isAtoDStage(namedResponse, loggerStartStage+1) or isAtoDStage(namedResponse, loggerStartStage)):
+                   raise Exception("ERROR: expecting preamp then AtoD or AtoD stage, which should have Coefficients, but not found. %d %s"%(loggerStartStage, prototypeChan))
+
                 # now deal with actual filter chain
-                for s in namedResponse.Stage[loggerStartStage : ]:
+                for s in namedResponse.Stage[loggerStartStage -1 : ]:
                    # first search to see if we have already added this filter stage
                    found = False
                    for oldName, oldStage in prevAddedFilterStage.items():
