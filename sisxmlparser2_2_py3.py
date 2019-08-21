@@ -952,7 +952,7 @@ class ResponseStageType(SISBase):
             ('FIR', FIRType, False, False),
             ('Polynomial', PolynomialType, False, False),
             ('Decimation', DecimationType, False, False),
-            ('StageGain', GainType, True, False),
+            ('StageGain', GainType, False, False),
             )
     ATTRIBS = SISBase.ATTRIBS + (('resourceId', 'text', False, False),
               ('number', 'integer', False, False),
