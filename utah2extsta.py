@@ -251,10 +251,13 @@ def main():
                 tempChan = []
                 for c in s.Channel:
                     utah = loadUtahResp(parseArgs.dir, s, c)
+                    if len(utah) == 0:
+                        print("No Utah resp files found for {}.{} {}".format(s.code, c.code, c.startDate))
                     for u in utah:
                         print("Try: {} {}".format(u['filename'], u['Seismometer']))
                         possibleSensors = findSensors(parseArgs.nrl, u)
-                        print("XXXX {} XXXXXX {}".format(checkNRL.getChanCodeId(n, s, c), len(possibleSensors)))
+                        if len(possibleSensors) == 0:
+                            print("No possible NRL sensors found for {} {}".format(checkNRL.getChanCodeId(n, s, c), len(possibleSensors)))
                         for p in possibleSensors:
                             print("Found possible match: {} {} => {}".format(u['filename'], u['Seismometer'], p['filename']))
 
