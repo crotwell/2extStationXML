@@ -136,13 +136,6 @@ def cleanPolynomial(polynomial, changes):
 def cleanDecimation(decimation, changes):
     return True, "ok"
 
-def cleanGain(gain, changes):
-    if hasattr(gain, 'InputUnits'):
-      cleanUnit(gain.InputUnits, changes)
-    if hasattr(gain, 'OutputUnits'):
-      cleanUnit(gain.OutputUnits, changes)
-
-
 
 def cleanStage(stage, changes):
     if hasattr(stage, 'PolesZeros'):
@@ -155,8 +148,6 @@ def cleanStage(stage, changes):
         cleanPolynomial(stage.Polynomial, changes)
     if hasattr(stage, 'Decimation'):
         cleanDecimation(stage.Decimation, changes)
-    if hasattr(stage, 'StageGain'):
-        cleanGain(stage.StageGain, changes)
 
 
 def cleanResponse(resp, changes):
@@ -210,7 +201,7 @@ def main():
         if not os.path.exists(parseArgs.stationxml):
             print("ERROR: can't fine stationxml file %s"%(parseArgs.stationxml,))
             return
-    staxml = sisxmlparser.parse(parseArgs.stationxml)
+    staxml = sisxmlparser.parse(parseArgs.stationxml, isExtStaXml = False)
     print("Clean unit names")
     changes = cleanUnitNames(staxml)
     print("ok (%d changes)"%(changes['numChanges'],))
@@ -218,7 +209,7 @@ def main():
         for k, v in changes.items():
             if k != 'numChanges':
                 print("    %s => %s"%(k, v))
-    staxml.exportxml(parseArgs.outfile, 'FDSNStationXML', 'fsx', 0)
+    staxml.exportxml(parseArgs.outfile)
 
 if __name__ == '__main__':
     main()
