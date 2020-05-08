@@ -4,7 +4,7 @@ Interact with the NRL and parse RESP files.
 '''
 
 
-import sisxmlparser2_2_py3 as sisxmlparser
+import sisxmlparser3_0 as sisxmlparser
 
 import argparse
 import datetime

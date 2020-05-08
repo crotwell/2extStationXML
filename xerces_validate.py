@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-SCHEMA_FILE = "sis_extension_2.2.xsd"
+SCHEMA_FILE = "sis_extension_3.0.xsd"
 
 def xerces_validate(stationxml):
     if not os.path.exists(stationxml):
@@ -15,7 +15,7 @@ def xerces_validate(stationxml):
         print("""
 Can't find schema file sis_extension_2.2.xsd
 
-wget -O sis_extension_2.2.xsd https://anss-sis.scsn.org/xml/ext-stationxml/2.2/sis_extension.xsd
+wget -O sis_extension_3.0.xsd https://anss-sis.scsn.org/xml/ext-stationxml/3.0/sis_extension.xsd
 """)
         return False
 

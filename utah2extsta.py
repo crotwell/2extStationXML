@@ -5,7 +5,7 @@ Utah's response data files.
 '''
 import sta2extsta as sta2extsta
 import checkNRL as checkNRL
-import sisxmlparser2_2_py3 as sisxmlparser
+import sisxmlparser3_0 as sisxmlparser
 import uniqResponses as uniqResponses
 import cleanUnitNames as cleanUnitNames
 from xerces_validate import xerces_validate, SCHEMA_FILE

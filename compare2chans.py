@@ -3,7 +3,7 @@
 find unique responses in fdsn stationxml file
 '''
 import checkNRL as checkNRL
-import sisxmlparser2_2_py3 as sisxmlparser
+import sisxmlparser3_0 as sisxmlparser
 import uniqResponses as uniqResponses
 
 import datetime
