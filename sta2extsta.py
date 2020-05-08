@@ -559,7 +559,7 @@ def main():
             else:
                 raise SISError ("rootobj already has HardwareResponse.ResponseDictGroup!")
 # Finally after the instance is built export it.
-        rootobj.exportxml(parseArgs.outfile, 'FDSNStationXML', 'fsx', 0)
+        rootobj.exportxml(parseArgs.outfile)
 #        rootobj.exportxml(sys.stdout, 'FDSNStationXML', 'fsx', 0)
 
 
