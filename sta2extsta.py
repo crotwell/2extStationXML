@@ -27,7 +27,8 @@ NRL_PREFIX = "http://ds.iris.edu/NRL"
 
 
 def usage():
-    print(USAGE_TEXT)
+    initArgParser()
+
     sys.exit(1)
 
 def getStartDate(channel):
@@ -350,11 +351,11 @@ def main():
         else:
             origModuleURI = ""
 
-        rootobj.schemaVersion='1.0',
+        rootobj.schemaVersion='3.0'
         rootobj.Source=parseArgs.namespace
         rootobj.Sender=parseArgs.namespace
-        rootobj.Module='sta2extsta.py',
-        rootobj.ModuleURI='https://github.com/crotwell/2extStationXML',
+        rootobj.Module='sta2extsta.py'
+        rootobj.ModuleURI='https://github.com/crotwell/2extStationXML'
         rootobj.Created=datetime.datetime.now()
 
         if not hasattr(rootobj, 'comments'):
@@ -445,13 +446,13 @@ def main():
             if not hasattr(s, 'Operator'):
                 s.Operator = []
                 sOp = sisxmlparser.OperatorType()
-                sOp.Agency = []
-                sOp.Agency.append(parseArgs.operator)
+                sOp.Agency = parseArgs.operator
                 s.Operator.append(sOp)
             allChanCodes = {}
             tempChan = []
             for c in s.Channel:
-              if parseArgs.delcurrent and (not hasattr(c, 'endDate') or c.endDate > datetime.datetime.now() ):
+              if parseArgs.delcurrent and (not hasattr(c, 'endDate') or
+              c.endDate > datetime.datetime.now(datetime.timezone.utc) ):
                  print("        %s.%s --delcurrent: delete channel ends after now %s "%(c.locationCode, c.code, checkNRL.getChanCodeId(n,s,c),))
               else:
                  tempChan.append(c)
