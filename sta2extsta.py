@@ -44,6 +44,7 @@ def initArgParser():
   parser.add_argument('--onlychan', default=False, help="only channels with codes matching regular expression, ie BH. for all broadband. Can also match locid like '00\.HH.' Empty loc ids for filtering as '--'")
   parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
   parser.add_argument('-v', '--verbose', action='store_true', help="verbose output")
+  parser.add_argument('--ignorewarning', action='store_true', default=False)
   return parser.parse_args()
 
 def convertToResponseDict(fdsnResponse):
@@ -509,6 +510,7 @@ def main():
                    raise Exception("ERROR: expecting preamp then AtoD or AtoD stage, which should have Coefficients, but not found. %d %s"%(loggerStartStage, prototypeChan))
 
                 # now deal with actual filter chain
+
                 for s in namedResponse.Stage[loggerStartStage -1 : ]:
                    # first search to see if we have already added this filter stage
                    found = False
@@ -518,12 +520,26 @@ def main():
                            break
                    filterStage = sisxmlparser.FilterStageType()
                    filterStage.SequenceNumber = s.number
+
                    if hasattr(s, "Decimation"):
                        filterStage.Decimation = s.Decimation
+                   elif s.number == loggerStartStage and isPreampStage(namedResponse, loggerStartStage):
+                       pass
                    else:
                        print("No decimation in %s stage %d but it is required"%(prototypeChan, s.number))
                    if hasattr(s, "StageGain"):
                        filterStage.Gain = s.StageGain
+                       if s.number == loggerStartStage and \
+                       isPreampStage(namedResponse, loggerStartStage) and \
+                       not (hasattr(s, 'PolesZeros') or hasattr(s, 'Coefficients') or hasattr(s, 'FIR')):
+                           # try to find input units for StageGain-only stage from prev and next stages
+                           # and store in sis style Gain
+                           if hasattr(namedResponse.Stage[loggerStartStage-2], 'PolesZeros'):
+                               filterStage.Gain.InputUnits = namedResponse.Stage[loggerStartStage-2].PolesZeros.OutputUnits
+                           if hasattr(namedResponse.Stage[loggerStartStage], 'Coefficients'):
+                               filterStage.Gain.OutputUnits = namedResponse.Stage[loggerStartStage].Coefficients.InputUnits
+                           elif hasattr(namedResponse.Stage[loggerStartStage], "FIR"):
+                               filterStage.Gain.OutputUnits = namedResponse.Stage[loggerStartStage].FIR.InputUnits
                    filterStage.Filter = sisxmlparser.FilterIDType()
 
                    if not found:
@@ -541,6 +557,9 @@ def main():
                        filterStage.Filter.Type = "FIR"
                    elif hasattr(s, "Coefficients"):
                        filterStage.Filter.Type = "Coefficients"
+                   elif s.number == loggerStartStage and isPreampStage(namedResponse, loggerStartStage) and hasattr(filterStage, 'Gain'):
+                       # preamp gain only stage taken care of above
+                       pass
                    else:
                        print("stage does not have PZ, FIR or Coef: %s stage %s   \n%s"%(prototypeChan, s.number, dir(s)))
 
@@ -559,9 +578,8 @@ def main():
             else:
                 raise SISError ("rootobj already has HardwareResponse.ResponseDictGroup!")
 # Finally after the instance is built export it.
-        rootobj.exportxml(parseArgs.outfile)
+        rootobj.exportxml(parseArgs.outfile, ignorewarning=parseArgs.ignorewarning)
 #        rootobj.exportxml(sys.stdout, 'FDSNStationXML', 'fsx', 0)
-
 
 
 if __name__ == "__main__":
