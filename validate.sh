@@ -1,7 +1,7 @@
 #!/bin/bash
 
-SCHEMAURL='https://anss-sis.scsn.org/xml/ext-stationxml/2.2/sis_extension.xsd'
-SCHEMA='sis_extension_2.2.xsd'
+SCHEMAURL='https://anss-sis.scsn.org/xml/ext-stationxml/3.0/sis_extension.xsd'
+SCHEMA='sis_extension_3.0.xsd'
 
 if [[ ! -r 'xmlvalidator/ValidateStationXml.class' ]]
 then
