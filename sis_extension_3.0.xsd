@@ -1,0 +1,1139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- sis_extension.xsd version 3.0
+
+    2014-12-15 Prabha Acharya
+        Major revision - version 2.0. Not backward compatible.
+        Changed targetNamespace URI to http://anss-sis.scsn.org/xml/ext-stationxml/2.0
+        Added new complex types: LoggerPackageType, EquipIDType, LoggerPackageContentType, HardwareInstallationType, SiteIDType, ProjectType, GeoSiteType, PlaceType, FilterIDType, LogType
+        Removed types:LoggerType, CategoryType, DescriptionType, UserType.
+        Changes to existing elements/types:
+         CalibrationType: Removed length restriction for Comments.
+         ComponentType: Renamed IsVirtualSOH to IsVirtual. Added MaxAtoDCount. Removed PinNumber. Removed length restriction for ComponentName.
+         EquipBaseType: Category element type changed from CategoryType to xs:string. Changed type for Description from DescriptionType to xs:string. EquipmentLog element changed type to LogType. In LogType, added OffDate and renamed CreatedBy to Author.
+         EquipmentEpoch: Replaced ProjectName with Project of type ProjectType. Removed length restriction for PropertyTag, CoPropertyTag. Changed type for Description from DescriptionType to xs:string.
+         EquipmentLink: Removed element InstalledAt. Added AtoDDelay of DecimationType to allow specification of AtoD stage delay and correction. Category element type changed from CategoryType to xs:string.
+         FilterSequenceType: Renamed element Filter to FilterStage. Added attribute SISNamespace.
+         FilterStage (previously Filter): Removed FilterType and FilterName and added Filter of type FilterIDType.
+         Hardware: Modified Logger element changed to EquipBaseType from LoggerType. Added elements LoggerBoard, LoggerPackage and Equipment.
+         HardwareResponse: Added HardwareInstallationGroup under HardwareResponse to track where equipment is installed.
+         InventoryStatus: Removed restriction of enumerated values.
+         PackageType: Category element type changed from CategoryType to xs:string.
+         PolesZerosType, FIRType, CoefficientsType, PolynomialType: Extended the original types from FDSN schema and added attribute SISNamespace.
+         ProblemReport: Removed length restriction for Subject, CreatedBy.
+         ResponseDictGroup: Modified ResponseDict element changed minOccurs=1.
+         ResponseDictLinkType: Added element SISNamespace.
+         ResponseDictType, SubResponseDetailType, CalResponseDetailType: Changed response elements to use the newly defined extended types from the sis schema, instead of the ones from fsx schema.
+         SettingType: Removed length restriction for Key, Value.
+         StationType: Added element GeoSite of type GeoSiteType and attribute codeType.
+
+    2016-06-16 Prabha Acharya
+          Removed PreampGain. This is to be specified as a separate SubResponse stage using ResponseDetail element.
+          Added complex type LoggerType. It contains 0 or more SOH components
+          Changed Logger element from EquipBaseType to LoggerType to allow the digital SOH components to be described.
+          Modified ComponentType. Removed IsPhysicalSOH and IsVirtual
+          Changed targetNamespace URI to http://anss-sis.scsn.org/xml/ext-stationxml/2.1
+    2017-08-31 Prabha Acharya
+          SensorSiteDescription: Made following elements optional - StationHousing, GeologicSiteClass, PhysicalCondition, SensorOffset
+          Changed targetNamespace URI to http://anss-sis.scsn.org/xml/ext-stationxml/2.2
+    2020-04-29 version 3.0 Prabha Acharya 
+          Updated the FDSNStationXML schema to version 1.1. 
+          Changed targetNamespace URI to http://anss-sis.scsn.org/xml/ext-stationxml/3.0
+          Changed SubResponseDetailType to align with FDSNStationXML1.1 changes
+          Changed ResponseDictType: removed minoccurs=0 for choices to prevent empty ResponseDict element
+          Changed CalResponseDetailType: removed minoccurs=0 for choices to prevent empty CalResponseDetail element
+          Added optional element IPAddress of type IPAddressType to EquipBase 
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" version="2.0" elementFormDefault="qualified"
+    targetNamespace="http://anss-sis.scsn.org/xml/ext-stationxml/3.0"
+    xmlns:fsx="http://www.fdsn.org/xml/station/1"
+    xmlns:sis="http://anss-sis.scsn.org/xml/ext-stationxml/3.0">
+    <xs:import schemaLocation="./fdsn-station-1.1.xsd" namespace="http://www.fdsn.org/xml/station/1"/>
+    <xs:complexType name="RootType">
+        <xs:complexContent>
+            <xs:extension base="fsx:RootType">
+                <xs:sequence>
+                    <xs:element name="HardwareResponse" type="sis:HardwareResponseType"
+                        minOccurs="0"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="HardwareResponseType">
+        <xs:annotation>
+            <xs:documentation>
+            This type contains the detailed hardware and/or response information.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Hardware" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>This element groups all the hardware together. </xs:documentation>
+                </xs:annotation>
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="Sensor" type="sis:EquipType" minOccurs="0"
+                            maxOccurs="unbounded"/>
+                        <xs:element name="Logger" minOccurs="0" maxOccurs="unbounded" type="sis:LoggerType"/>
+                        <xs:element name="LoggerBoard" type="sis:EquipType" minOccurs="0"
+                            maxOccurs="unbounded"/>
+                        <xs:element name="LoggerPackage" type="sis:LoggerPackageType" minOccurs="0"
+                            maxOccurs="unbounded">
+                            <xs:annotation>
+                                <xs:documentation>
+                                LoggerPackage describes which Logger contained which Board(s) for what period of time.
+                            </xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="Amplifier" type="sis:EquipType" minOccurs="0"
+                            maxOccurs="unbounded"/>
+                        <xs:element name="VCO" type="sis:EquipType" minOccurs="0"
+                            maxOccurs="unbounded"/>
+                        <xs:element name="Discriminator" type="sis:EquipType" minOccurs="0"
+                            maxOccurs="unbounded"/>
+                        <xs:element name="Equipment" type="sis:EquipBaseType" minOccurs="0"
+                            maxOccurs="unbounded">
+                            <xs:annotation>
+                                <xs:documentation>Equipment which are not sensors, loggers, loggerboards, amplifiers, vcos or discriminators. </xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="Package" type="sis:PackageType" minOccurs="0"
+                            maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="ResponseDictGroup" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>This element groups the response dictionary elements together.
+                </xs:documentation>
+                </xs:annotation>
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:annotation>
+                            <xs:documentation>
+                            The response dictionary element describes a response and can be of one of these:
+                            PolesZeros, FIR, Coefficients, Polynomial or FilterSequence.
+                        </xs:documentation>
+                        </xs:annotation>
+                        <xs:element name="ResponseDict" type="sis:ResponseDictType"
+                            maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="HardwareInstallationGroup" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="HardwareInstallation" type="sis:HardwareInstallationType"
+                            maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="StationType">
+        <xs:annotation>
+            <xs:documentation>
+            This type extends the StationType to add elements: DatumVertical, SecondaryStatonNumber,
+            ReferenceAzimuth, GeoSite and attribute codeType.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="fsx:StationType">
+                <xs:sequence>
+                    <xs:element name="DatumVertical" type="xs:string" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation>Datum used for the Elevation.</xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="SecondaryStationNumber" type="xs:string" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation>
+                            Secondary station number in COSMOS.
+                        </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="ReferenceAzimuth" type="fsx:AzimuthType" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation>
+                            Reference azimuth for sensor orientations(normally 360, for true North)
+                        </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="GeoSite" type="sis:GeoSiteType" minOccurs="0"/>
+                </xs:sequence>
+                <xs:attribute name="codeType" type="xs:string" default="FDSN" use="optional">
+                    <xs:annotation>
+                        <xs:documentation>Set value to GeoSite if this is not an FDSN compliant station code, but rather a code for a geographic site with no channels. E.g. hub site.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="ChannelType">
+        <xs:annotation>
+            <xs:documentation>
+            This type extends ChannelType to add optional elements: StationChannelNumber, MeasurementType, SignalUnits, Clip, Cutoff, PinNumber, ChannelSource, NeedsReview, SensorSiteDescription.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="fsx:ChannelType">
+                <xs:sequence>
+                    <xs:element name="StationChannelNumber" type="xs:int" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation>
+                            A unique channel number assigned for each channel at a station as per COSMOS convention
+                        </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="MeasurementType" type="xs:string" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation>
+                                Physical Observation Type (acceleration, velocity etc.) Also can be what the physical SOH or synthetic SOH component measures.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="SignalUnits" type="fsx:UnitsType" minOccurs="0"/>
+                    <xs:element name="Clip" type="xs:double" minOccurs="0"/>
+                    <xs:element name="Cutoff" type="xs:double" minOccurs="0"/>
+                    <xs:element name="PinNumber" type="xs:integer" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation>
+                            This is the logger pin number (physical channel) . Provide only if the link to the logger is missing.
+                        </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="ChannelSource" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation>
+                            This indicates the convention followed in the channel naming.
+                        </xs:documentation>
+                        </xs:annotation>
+                        <xs:simpleType>
+                            <xs:restriction base="xs:string">
+                                <xs:enumeration value="SEED"/>
+                                <xs:enumeration value="USGS"/>
+                            </xs:restriction>
+                        </xs:simpleType>
+                    </xs:element>
+                    <xs:element name="NeedsReview" type="xs:boolean" minOccurs="0" default="false">
+                        <xs:annotation>
+                            <xs:documentation>
+                            This flag allows the user to indicate that the channel needs review and will be used by SIS to generate a report.
+                        </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="SensorSiteDescription" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation>
+                            Description of the conditions where a ground motion record was obtained is important, both to help in analyzing the recorded motion and to guide the use of the recorded data in derivative products such as ShakeMap.  The site description can include these factors - the station/sensor housing, the geological conditions at the site, and the physical conditions surrounding the site.
+                            Note that the Site Description may be defined on a station basis or a sensor-by-sensor basis.  When the accelerometers are separated from the recorder/dataloger housing, the site description should be given for the location of the sensor.
+                        </xs:documentation>
+                        </xs:annotation>
+                        <xs:complexType>
+                            <xs:sequence>
+                                <xs:element name="StationHousing" type="xs:int" minOccurs="0">
+                                    <xs:annotation>
+                                        <xs:documentation>
+                                        Use the number code.
+                                        Station Housing/Sensor Enclosure (defined in Cosmos Table 6)
+                                        1	Small fiberglass or other shelter (typ. ~1m3; e.g. T-hut)
+                                        2	Small prefabricated metal bldg (typ. 1-2m x 1-2m x 2 m high; e.g. Armco)
+                                        3	Sensors buried/set in ground or deployed in shallow ground vault (within~1m of surface)
+                                        4	Reference station (1-2 story, small (less than 4000 ft2 or 370 m2), light building without basement)
+                                        5	Base of building larger than above
+                                        6	Free field, unspecified
+                                        7	Ocean bottom sensors
+                                        8	Sensors in small near-surface seismic vault (1-2m deep)
+                                        9	Sensors in underground observatory or large vault (~3m3 or larger)
+                                        10	Building, sensor in upper levels
+                                        11	Bridge
+                                        12	Dam
+                                        13	Wharf
+                                        14	Tunnel or mine adit (3m or more from surface)
+                                        15	Other lifeline structure
+                                        20	Other structure
+                                        50	Geotechnical array (borehole) sensors, 2m or greater deep
+                                    </xs:documentation>
+                                    </xs:annotation>
+                                </xs:element>
+                                <xs:element name="GeologicSiteClass" type="xs:string" minOccurs="0">
+                                    <xs:annotation>
+                                        <xs:documentation>
+                                        Use the alphabet code corresponding to the text below.
+                                        Geologic Site Class Definitions from CBC 2010
+                                        A	Hard rock  (Vs30 greater than 5000 ft/s, or Vs30 greater than 1525 m/s)
+                                        B	Rock (Vs30 between 2500 ft/s and 5000 ft/s, or 760 m/s and 1525 m/s)
+                                        C	Very dense soil and soft rock  (Vs30 between 1200 ft/s and 2500 ft/s, or 365 m/s and 1525m/s)
+                                        D	Stiff soil profile  (Vs30 between 600 ft/s and 1200 ft/s, or 182 m/s and 365 m/s)
+                                        E	Soft soil profile  (Vs30 less than 600 ft/s, or 182 m/s )
+                                        F	Liquefiable soils, peats and/or highly organic clays, etc.
+                                        U	Unknown
+                                    </xs:documentation>
+                                    </xs:annotation>
+                                </xs:element>
+                                <xs:element name="PhysicalCondition" type="xs:string" minOccurs="0">
+                                    <xs:annotation>
+                                        <xs:documentation>
+                                        Use the alphabet code corresponding to the text below.
+                                        a	No nearby structures or topographic changes, sensors firmly anchored.
+                                        b	Small structure (less than 1000 ft2 or 93 m2, single-story) exists within 1 structure dimension of the site.
+                                        c	Larger structure (more than 1000 ft2 or 93 m2, and/or 2-story or higher) exists within 1 structure dimension (largest) from the site.
+                                        d	Significant topographic change (more than 10 ft or 3m) within 2x of the amplitude of the topographic change from the site (e.g. ridge top, narrow canyon bottom, cliff or bluff).
+                                        e	Other noteworthy condition.
+                                        u	Physical surroundings at site unknown.
+                                    </xs:documentation>
+                                    </xs:annotation>
+                                </xs:element>
+                                <xs:element name="Vs30" type="xs:double" minOccurs="0">
+                                    <xs:annotation>
+                                        <xs:documentation>
+                                           Velocity of shear wave in m/s at a depth of 30m.
+                                       </xs:documentation>
+                                    </xs:annotation>
+                                </xs:element>
+                                <xs:element name="SensorOffset" minOccurs="0">
+                                    <xs:annotation>
+                                        <xs:documentation>Offset of sensor site, if array. Give all values in meter</xs:documentation>
+                                    </xs:annotation>
+                                    <xs:complexType>
+                                        <xs:sequence>
+                                            <xs:element name="NorthOffset" type="xs:double" minOccurs="0"/>
+                                            <xs:element name="EastOffset" type="xs:double" minOccurs="0"/>
+                                            <xs:element name="VerticalOffset" type="xs:double" minOccurs="0"/>
+                                        </xs:sequence>
+                                    </xs:complexType>
+                                </xs:element>
+                            </xs:sequence>
+                        </xs:complexType>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="ResponseType">
+        <xs:complexContent>
+            <xs:extension base="fsx:ResponseType">
+                <xs:annotation>
+                    <xs:documentation>
+                        This type extends the ResponseType. Although technically it is valid to use the Stage element from fsx:ResponseType, do not use it if equipment information is known. Instead use the newly defined SubResponse element.
+                    </xs:documentation>
+                </xs:annotation>
+                <xs:sequence>
+                    <xs:element name="SubResponse" type="sis:SubResponseType" minOccurs="0"
+                        maxOccurs="unbounded">
+                        <xs:annotation>
+                            <xs:documentation>
+                            This is supposed to be used in place of the Stage element.
+                        </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="PolesZerosType">
+        <xs:complexContent>
+            <xs:extension base="fsx:PolesZerosType">
+                <xs:attribute name="SISNamespace" type="xs:string" use="required"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="CoefficientsType">
+        <xs:complexContent>
+            <xs:extension base="fsx:CoefficientsType">
+                <xs:attribute name="SISNamespace" type="xs:string" use="required"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="FIRType">
+        <xs:complexContent>
+            <xs:extension base="fsx:FIRType">
+                <xs:attribute name="SISNamespace" type="xs:string" use="required"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="PolynomialType">
+        <xs:complexContent>
+            <xs:extension base="fsx:PolynomialType">
+                <xs:attribute name="SISNamespace" type="xs:string" use="required"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SubResponseType">
+        <xs:annotation>
+            <xs:documentation>
+            This type represents the channel response and describes the equipment contributing to that response (when available)
+        </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:choice>
+                <xs:annotation>
+                    <xs:documentation>
+                    A choice of EquipmentLink, ResponseDetail, RESPFile or ResponseDictLink.
+                </xs:documentation>
+                </xs:annotation>
+                <xs:element name="EquipmentLink">
+                    <xs:annotation>
+                        <xs:documentation>
+                            This is a link to an equipment as specified in the Hardware section and it's response by specifying its component/calibration date.
+                        </xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:annotation>
+                                <xs:documentation>
+                                It is required to specify SerialNumber, ModelName, Category, ComponentName and CalibrationDate to uniquely identify an equipment and its response.
+                                Optionally in case of remotely installed equipment, specify station code of the station where the equipment is installed. Otherwise it is assumed that the equipment is installed at this station.
+                            </xs:documentation>
+                            </xs:annotation>
+                            <xs:element name="SerialNumber" type="xs:string"/>
+                            <xs:element name="ModelName" type="xs:string"/>
+                            <xs:element name="Category" type="xs:string"/>
+                            <xs:element name="ComponentName" type="xs:string"/>
+                            <xs:element name="CalibrationDate" type="xs:dateTime" minOccurs="0"/>
+                            <xs:element name="AtoDDelay" type="fsx:DecimationType" minOccurs="0"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="ResponseDetail" type="sis:SubResponseDetailType">
+                    <xs:annotation>
+                        <xs:documentation>
+                        This is used to specify an inline detailed response (optional) along with StageGain (required).
+                    </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="RESPFile" type="sis:RESPFileType">
+                    <xs:annotation>
+                        <xs:documentation>
+                        This is used to specify a URL to a RESP file.
+                    </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="ResponseDictLink">
+                    <xs:annotation>
+                        <xs:documentation>
+                        This type references a ResponseDict element defined in the ResponseDictGroup.
+                    </xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:complexContent>
+                            <xs:extension base="sis:ResponseDictLinkType">
+                                <xs:sequence>
+                                    <xs:element name="Gain" type="sis:GainType" minOccurs="0">
+                                        <xs:annotation>
+                                            <xs:documentation>
+                                            Specify gain here if responsedict element type is poleszeros, but not for polynomials and filtersequences
+                                        </xs:documentation>
+                                        </xs:annotation>
+                                    </xs:element>
+                                </xs:sequence>
+                            </xs:extension>
+                        </xs:complexContent>
+                    </xs:complexType>
+                </xs:element>
+            </xs:choice>
+        </xs:sequence>
+        <xs:attribute name="sequenceNumber" type="xs:integer">
+            <xs:annotation>
+                <xs:documentation>
+                An increasing integer value indicating the sequence of the multiple SubResponse elements. Normally it will equal to the stage number in a dataless. Exception cases would be if the SubResponse element is a reference to a FilterSequence in the ResponseDictionary(maps to multiple FIR filter stages), or the SubResponse element points to a RESP file from which multiple stages are to be used (Logger + filters).
+            </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+
+        <xs:attribute name="type" type="xs:string">
+            <xs:annotation>
+                <xs:documentation>Specify response type as 'Analog' or 'Digital'</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+    <xs:complexType name="CalibrationType">
+        <xs:annotation>
+            <xs:documentation>
+            This complex type contains all the information about a particular calibration response for a equipment component.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:choice>
+                <xs:annotation>
+                    <xs:documentation>
+                        Date calibrated. If present this date has to equal or precede the channel epoch ondate for the channel using it.
+                        Else set CalibrationDateUnknown to true.
+                    </xs:documentation>
+                </xs:annotation>
+                <xs:element name="CalibrationDate" type="xs:dateTime"/>
+                <xs:element name="CalibrationDateUnknown" type="xs:boolean" default="true"/>
+            </xs:choice>
+            <xs:element name="Response">
+                <xs:annotation>
+                    <xs:documentation>
+                    Provide the response associated with this calibration. Required.
+                </xs:documentation>
+                </xs:annotation>
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:choice minOccurs="0">
+                            <xs:annotation>
+                                <xs:documentation>Provide an URI to a RESP file describing the response or provide the response inline
+                                    or provide a link to a named response in the dictionary.
+                                    Response may be described in poles zeros or polynomials.
+                                </xs:documentation>
+                            </xs:annotation>
+                            <xs:element name="RESPFile" type="sis:RESPFileType"/>
+                            <xs:element name="ResponseDetails" type="sis:CalResponseDetailType"/>
+                            <xs:element name="ResponseDictLink" type="sis:ResponseDictLinkType"/>
+                        </xs:choice>
+                        <xs:element name="Gain" type="sis:GainType" minOccurs="0">
+                            <xs:annotation>
+                                <xs:documentation>
+                                Specify Gain if using ResponseDetails or ResponseDictLink to a PolesZeros. If Response is described in RESPFile specify Gain here to override the values already defined in RESPFile.
+                            </xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="InputRange" minOccurs="0" type="xs:double"/>
+            <xs:element name="InputRangeUnit" minOccurs="0" type="fsx:UnitsType"/>
+            <xs:element name="OutputRange" minOccurs="0" type="xs:double"/>
+            <xs:element name="OutputRangeUnit" minOccurs="0" type="fsx:UnitsType"/>
+            <xs:element name="Comments" minOccurs="0" type="xs:string"/>
+            <xs:element name="NeedsReview" type="xs:boolean" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>
+                This flag allows the user to indicate that the calibration needs review and will be used by SIS to generate a report.
+                </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="NaturalFrequency" type="xs:double" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Provide only for sensors. Natural Frequency in Hertz</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="DampingConstant" type="xs:double" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Provide only for sensors. Damping constant</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Attenuation" type="xs:double" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Provide only for amplifiers and VCOs. Attenuation in dB</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="StandardGain" type="xs:double" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Provide only for amplifiers and VCOs. Standard Gain in dB</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="TuningHertz" type="xs:double" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Provide only for VCOs and discriminators. Tuning frequency in Hertz</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="TuningVolt" type="xs:double" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Provide only for VCOs and discriminators. Tuning voltage in Volt</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ResponseDictType">
+        <xs:annotation>
+            <xs:documentation>
+                This complex type if used to define response dictionary (ResponseDict) elements that are present in the ResponseDictGroup element in the root. No links to RESP files. Choose one of PolesZeros, FIR, Coefficients, Polynomial or FilterSequence. The FilterSequences use the FIR/Coefficients and hence should be defined after the FIR/Coefficients.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="PolesZeros" type="sis:PolesZerosType"/>
+            <xs:element name="Coefficients" type="sis:CoefficientsType"/>
+            <xs:element name="FIR" type="sis:FIRType"/>
+            <xs:element name="Polynomial" type="sis:PolynomialType"/>
+            <xs:element name="FilterSequence" type="sis:FilterSequenceType"/>
+        </xs:choice>
+    </xs:complexType>
+    <xs:complexType name="ResponseDictLinkType">
+        <xs:annotation>
+            <xs:documentation>
+                Provide a link to a response dictionary element by specifying its name, SIS namespace and type. IIR filters represented by PZs, FIR filters and Coefficients are not allowed here, those should be wrapped into a FilterSequence element and then used in channel response.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string"/>
+            <xs:element name="SISNamespace" type="xs:string"/>
+            <xs:element name="Type">
+                <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                        <xs:enumeration value="PolesZeros"/>
+                        <xs:enumeration value="Polynomial"/>
+                        <xs:enumeration value="FilterSequence"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SubResponseDetailType">
+        <xs:annotation>
+            <xs:documentation>
+                Specify a detailed inline response. It is used in the channel subresponse element. It covers SEED blockettes 53, 54, 57, 58, 61, 62
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:annotation>
+                <xs:documentation>A choice of response types. </xs:documentation>
+            </xs:annotation>
+            <xs:sequence>
+                <xs:choice minOccurs="0">
+                    <xs:element name="PolesZeros" type="sis:PolesZerosType" minOccurs="0"/>
+                    <xs:element name="Coefficients" type="sis:CoefficientsType" minOccurs="0"/>
+                    <xs:element name="FIR" type="sis:FIRType" minOccurs="0"/>
+                </xs:choice>
+                <xs:element name="Decimation" type="fsx:DecimationType" minOccurs="0"/>
+                <xs:element name="Gain" type="sis:GainType"/>
+            </xs:sequence>
+            <xs:element name="Polynomial" type="sis:PolynomialType"/>
+        </xs:choice>
+    </xs:complexType>
+    <xs:complexType name="CalResponseDetailType">
+        <xs:annotation>
+            <xs:documentation>
+                Specify a detailed inline response using poles zeros or polynomials. It is used in the equipment calibration element.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:choice>
+                <xs:annotation>
+                    <xs:documentation>A choice of response types. </xs:documentation>
+                </xs:annotation>
+                <xs:element name="PolesZeros" type="sis:PolesZerosType"/>
+                <xs:element name="Polynomial" type="sis:PolynomialType"/>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="FilterSequenceType">
+        <xs:annotation>
+            <xs:documentation>
+                Define a sequence of IIR or FIR filters as used in a cascade. Give links to the filters already defined in the ResponseDict element. Specify decimation and gain for each filter stage.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="FilterStage" minOccurs="1" maxOccurs="unbounded">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="SequenceNumber" type="xs:int"/>
+                        <xs:element name="Filter" type="sis:FilterIDType"/>
+                        <xs:element name="Decimation" type="fsx:DecimationType"/>
+                        <xs:element name="Gain" type="sis:GainType"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="name" type="xs:string" use="required">
+            <xs:annotation>
+                <xs:documentation>A name given to this filter sequence. </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="SISNamespace" type="xs:string" use="required"/>
+    </xs:complexType>
+    <xs:complexType name="RESPFileType">
+        <xs:annotation>
+            <xs:documentation>
+            If using an NRL RESP file stageFrom and stageTo are optional and if left blank the following defaults will be assumed. If Sensor then stageFrom = stageTo =1. If logger then stageFrom=3 and stageTo=n. The sensitivity defined in stage=2 will be set as Logger preamp gain value (not a separate response stage).
+            In case of non NRL RESP file stageFrom and stageTo are required and indicate which stages are relevant in this context. This stage number is used for identifying what it is be included. The numbering for the response will be redone based on what other Equipment/SubResponse elements precede this one.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:simpleContent>
+            <xs:extension base="xs:anyURI">
+                <xs:attribute name="stageFrom" type="xs:int" use="optional"/>
+                <xs:attribute name="stageTo" type="xs:int" use="optional"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+    <xs:complexType name="EquipBaseType">
+        <xs:annotation>
+            <xs:documentation>
+            This complex type contains all the equipment inventory type information, but no response information. It can be also used by instruments (non-seismic) that do not have response.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="SerialNumber" type="xs:string"/>
+            <xs:element name="ModelName" type="xs:string"/>
+            <xs:element name="Category" type="xs:string"/>
+            <xs:element name="IsActualSerialNumber" type="xs:boolean"/>
+            <xs:element name="COSMOSModelNumber" type="xs:integer" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>COSMOS model number. It is an optional attribute</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="EquipmentEpoch" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                    Equipment has at least one inventory epoch which contains information about its status, operator and owner, propertytag. If any of these values change, create a new epoch.
+                </xs:documentation>
+                </xs:annotation>
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="OnDate" type="xs:dateTime">
+                            <xs:annotation>
+                                <xs:documentation>Epoch on date</xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="OffDate" type="xs:dateTime" minOccurs="0">
+                            <xs:annotation>
+                                <xs:documentation>Epoch off date for past epochs. For active epochs offdate is absent.</xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="InventoryStatus" type="xs:string">
+                            <xs:annotation>
+                                <xs:documentation> Equipment inventory status. </xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="Operator" type="xs:string">
+                            <xs:annotation>
+                                <xs:documentation>Equipment operator. </xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="Owner" type="xs:string" minOccurs="0">
+                            <xs:annotation>
+                                <xs:documentation>Equipment owner. </xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="PropertyTag" type="xs:string" minOccurs="0">
+                            <xs:annotation>
+                                <xs:documentation>Property tag assigned by owner</xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="CoOwner" type="xs:string" minOccurs="0">
+                            <xs:annotation>
+                                <xs:documentation>Equipment co-owner. </xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="CoPropertyTag" type="xs:string" minOccurs="0">
+                            <xs:annotation>
+                                <xs:documentation>Property tag assigned by co-owner</xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="Project" minOccurs="0" type="sis:ProjectType"/>
+                        <xs:element name="Description" type="xs:string" minOccurs="0"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="Description" type="xs:string" minOccurs="0"/>
+            <xs:element name="Vendor" type="xs:string" minOccurs="0"/>
+            <xs:element name="EquipmentLog" type="sis:LogType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                Equipment log report. 0 or many allowed.
+                </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="ProblemReport" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                    Problem report along with on and off dates.
+                </xs:documentation>
+                </xs:annotation>
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="OnDate">
+                            <xs:annotation>
+                                <xs:documentation>Time when the problem first occured or was first observed</xs:documentation>
+                            </xs:annotation>
+                            <xs:complexType>
+                                <xs:simpleContent>
+                                    <xs:extension base="xs:dateTime">
+                                        <xs:attribute name="onDateType" default="FirstObservation">
+                                            <xs:simpleType>
+                                                <xs:restriction base="xs:string">
+                                                  <xs:enumeration value="FirstOccurence"/>
+                                                  <xs:enumeration value="FirstObservation"/>
+                                                </xs:restriction>
+                                            </xs:simpleType>
+                                        </xs:attribute>
+                                    </xs:extension>
+                                </xs:simpleContent>
+                            </xs:complexType>
+                        </xs:element>
+                        <xs:element name="OffDate" minOccurs="0">
+                            <xs:annotation>
+                                <xs:documentation>If problem is active or on-going leave this blank</xs:documentation>
+                            </xs:annotation>
+                            <xs:complexType>
+                                <xs:simpleContent>
+                                    <xs:extension base="xs:dateTime">
+                                        <xs:attribute name="offDateType" default="LastObservation">
+                                            <xs:simpleType>
+                                                <xs:restriction base="xs:string">
+                                                  <xs:enumeration value="LastOccurence"/>
+                                                  <xs:enumeration value="LastObservation"/>
+                                                </xs:restriction>
+                                            </xs:simpleType>
+                                        </xs:attribute>
+                                    </xs:extension>
+                                </xs:simpleContent>
+                            </xs:complexType>
+                        </xs:element>
+                        <xs:element name="Subject" type="xs:string"/>
+                        <xs:element name="LogText" type="xs:string"/>
+                        <xs:element name="CreatedBy" type="xs:string" minOccurs="0"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="EquipSetting" type="sis:SettingType" minOccurs="0"
+                maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation> Check the SIS website for the keys available for a model. New ones cannot be added by via the XML. </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="IPAddress" type="sis:IPAddressType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Equipment IPAddress (IPv4 or IPv6).
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="EquipType">
+        <xs:annotation>
+            <xs:documentation>
+            This complex type extends the EquipBaseType and adds the Component(s) which contains response information.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="sis:EquipBaseType">
+                <xs:sequence>
+                    <xs:annotation>
+                        <xs:documentation>
+                        Equipment contains one or more components
+                    </xs:documentation>
+                    </xs:annotation>
+                    <xs:element name="Component" type="sis:ComponentType" maxOccurs="unbounded"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="LoggerType">
+        <xs:annotation>
+            <xs:documentation>
+                This complex type extends the EquipBaseType and adds the optional Component(s) which contains response information for digital SOH channels.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="sis:EquipBaseType">
+                <xs:sequence>
+                    <xs:annotation>
+                        <xs:documentation>
+                            Logger contains 0 or more SOH components
+                        </xs:documentation>
+                    </xs:annotation>
+                    <xs:element name="SOHComponent" type="sis:ComponentType" minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="ComponentType">
+        <xs:annotation>
+            <xs:documentation>
+            This complex type describes a component of an instrument.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="ComponentName" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation>Name for each component of an instrument. This has to be unique for each instrument.
+                        Values for sensors: X, Y, Z, MASS-POSITION1, MASS-POSITION2, MASS-POSITION3, VERTICAL, HORIZONTAL, COMPONENT1 ... COMPONENTn
+                        For loggers: DATA1 ...  DATAn, MASS-POSITION1 ... MASS-POSITIONn, AUX1… AUXn, SERIAL … SERIALn
+                        For other equipment: COMPONENT1 ... COMPONENTn
+                        Check the SIS website for the latest list. New ones will not be added by the XML.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Calibration" type="sis:CalibrationType" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                    The calibration element contains the date calibrated and the response as described in the complex type definition.
+                </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="NumberOfAtoDBits" type="xs:integer" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>
+                        Applicable only for Loggers. Number of A to D bits.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="MaxAtoDCount" type="xs:integer" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>
+                        Applicable only for Loggers. Max count for ADC. Generally = 2^(number of AtoD bits -1) since 1 bit is used for sign
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="LoggerPackageType">
+        <xs:annotation>
+            <xs:documentation>
+            Logger packages describe which loggerboards were present in which logger at what time.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Logger" type="sis:EquipIDType"/>
+            <xs:element name="LoggerContent" type="sis:LoggerPackageContentType"
+                maxOccurs="unbounded"/>
+            <xs:element name="OnDate" type="xs:dateTime" minOccurs="0"/>
+            <xs:element name="OffDate" type="xs:dateTime" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="EquipIDType">
+        <xs:annotation>
+            <xs:documentation>
+                EquipIDType contains the natural keys to identify a piece of equipment.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="SerialNumber" type="xs:string"/>
+            <xs:element name="ModelName" type="xs:string"/>
+            <xs:element name="Category" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="LoggerPackageContentType">
+        <xs:sequence>
+            <xs:element name="LoggerBoard" type="sis:EquipIDType"/>
+            <xs:element name="SlotNumber" type="xs:integer"/>
+            <xs:element name="ComponentDetail" maxOccurs="unbounded">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="ComponentName">
+                            <xs:annotation>
+                                <xs:documentation>Name for each component of an instrument.
+                                    For loggers: DATA1 ...  DATAn, MASS-POSITION1 ... MASS-POSITIONn, AUX1… AUXn, SERIAL … SERIALn
+                                </xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                        <xs:element name="PinNumber" type="xs:integer">
+                            <xs:annotation>
+                                <xs:documentation>
+                                AKA the logger physical channel number.
+                            </xs:documentation>
+                            </xs:annotation>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="GainType">
+        <xs:annotation>
+            <xs:documentation>
+          This complex type extends the GainType in the FDSNStationXML. Its purpose is to avoid the unnecessary writing of empty  poles/zeros or coefficients blockettes (and now their equipvalent ResponseDetail elements) just to be able to specify the input and output units. Particularly useful when specifying logger sensitivity - no need to define an empty Coefficients response. Also useful in cases where only the stage gain is known, but no response detail is known.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="fsx:GainType">
+                <xs:sequence>
+                    <xs:element name="InputUnits" type="fsx:UnitsType" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation> The units of the data as input from the perspective of data
+                                acquisition. After correcting data for this response, these would be the
+                                resulting units. </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="OutputUnits" type="fsx:UnitsType" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation> The units of the data as output from the perspective of data
+                                acquisition. These would be the units of the data prior to correcting for
+                                this response. </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SettingType">
+        <xs:annotation>
+            <xs:documentation>
+            A complex type to specify key value pairs alongwith optional ondate and offdate.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Key" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation> Key names are case-insensitive, They are stored in uppercase in the database. </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Value" type="xs:string"/>
+            <xs:element name="OnDate" type="xs:dateTime" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Date and time the setting came into effect</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="OffDate" type="xs:dateTime" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Date and time the setting stopped being in effect</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    
+    <xs:complexType name="IPv4AddressType">
+        <xs:annotation>
+            <xs:documentation>
+                A complex type to specify IPv4 address.
+            </xs:documentation>
+        </xs:annotation>
+         <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="networkMask" type="xs:string" use="optional"/>
+                <xs:attribute name="gatewayAddress" type="xs:string" use="optional"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:complexType name="IPv6AddressType">
+        <xs:annotation>
+            <xs:documentation>
+                A complex type to specify IPv6 addresses. 
+            </xs:documentation>
+        </xs:annotation>
+         <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="prefixLength" type="xs:int" use="optional"/>
+                <xs:attribute name="gatewayAddress" type="xs:string" use="optional"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+    <xs:complexType name="IPAddressType">
+        <xs:sequence>
+            <xs:choice>
+                <xs:element name="IPv4Address" type="sis:IPv4AddressType"/>
+                <xs:element name="IPv6Address" type="sis:IPv6AddressType"/>
+            </xs:choice>
+            <xs:element name="PhysicalPort" type="xs:string" minOccurs="0"/>
+            <xs:element name="Notes" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="PackageType">
+        <xs:annotation>
+            <xs:documentation>
+            Specify equipment that is packaged together in a unit. E.g.
+        </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Equipment" maxOccurs="unbounded">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="SerialNumber" type="xs:string"/>
+                        <xs:element name="ModelName" type="xs:string"/>
+                        <xs:element name="Category" type="xs:string"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="OnDate" type="xs:dateTime"/>
+            <xs:element name="OffDate" type="xs:dateTime" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>No offdate indicates that this is a current package configuration</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="HardwareInstallationType">
+        <xs:annotation>
+            <xs:documentation>This type describes where equipment is located and for what time period and whether is it a multisite logger.</xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Equipment" type="sis:EquipIDType"/>
+            <xs:element name="Location" type="sis:SiteIDType"/>
+            <xs:element name="IsMultiSite" type="xs:boolean"/>
+            <xs:element name="InstallDate" type="xs:dateTime"/>
+            <xs:element name="RemovalDate" type="xs:dateTime" minOccurs="0"/>
+            <xs:element name="Notes" type="xs:string" minOccurs="0"/>
+            <xs:element name="InstallAlias" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SiteIDType">
+        <xs:sequence>
+            <xs:element name="SiteNetCode" type="xs:string"/>
+            <xs:element name="SiteLookupCode" type="xs:string"/>
+            <xs:element name="OnDate" type="xs:dateTime"/>
+            <xs:element name="OffDate" type="xs:dateTime" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ProjectType">
+        <xs:annotation>
+            <xs:documentation>Project information</xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string"/>
+            <xs:element name="GrantNumber" type="xs:string" minOccurs="0"/>
+            <xs:element name="Description" type="xs:string" minOccurs="0"/>
+            <xs:element name="StartDate" type="xs:dateTime" minOccurs="0"/>
+            <xs:element name="EndDate" type="xs:dateTime" minOccurs="0"/>
+            <xs:element name="FundingDate" type="xs:dateTime" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="SISNamespace" type="xs:string" use="required"/>
+    </xs:complexType>
+    <xs:complexType name="GeoSiteType">
+        <xs:sequence>
+            <xs:element name="Place" type="sis:PlaceType"/>
+            <xs:element name="SiteNetCode" type="xs:string" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Provide site net code if different from value in Network -> code.</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="SiteLookupCode" type="xs:string" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Provide site lookup code if different from value in Station -> code.</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="SiteTypeTag" type="xs:string" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Takes one of the following values. Seismic Station, GPS Station, Waypoint. Multiple tags can be used for a station if applicable.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="SiteLog" type="sis:LogType" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PlaceType">
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string"/>
+            <xs:element name="Latitude" type="fsx:LatitudeType"/>
+            <xs:element name="Longitude" type="fsx:LongitudeType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="FilterIDType">
+        <xs:annotation>
+            <xs:documentation>
+                Provide a link to a response dictionary element by specifying its name, SIS namespace and type. IIR filters represented by PZs, FIR filters and Coefficients are allowed here.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string"/>
+            <xs:element name="SISNamespace" type="xs:string"/>
+            <xs:element name="Type">
+                <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                        <xs:enumeration value="PolesZeros"/>
+                        <xs:enumeration value="FIR"/>
+                        <xs:enumeration value="Coefficients"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="LogType">
+        <xs:sequence>
+            <xs:element name="LogDate" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation>Log date</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Subject" type="xs:string"/>
+            <xs:element name="LogText" type="xs:string"/>
+            <xs:element name="OffDate" type="xs:dateTime" minOccurs="0"/>
+            <xs:element name="Author" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>
