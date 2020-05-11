@@ -2,7 +2,7 @@
 
 '''
 sisxmlparser3_0.py
-2020-05-06 (tmp version 0.2)
+2020-05-06 (tmp version 0.3)
 
 This module contains classes to parse an XML document in the extended
 FDSNStationXML format as defined in sis_extension.xsd (v3.0)
@@ -303,12 +303,18 @@ class SISBase(object):
         val = self.formatval(datatype, v)
         return ('{0}<{1}{2}>{3}</{1}>{4}'.format(INDENT*level, nsk, attr, val, os.linesep))
 
-    def exportdict(self):
+    def exportdict(self, ignorewarning=False):
         '''Return a python dictionary of this object's elements '''
 
         exp ={}
         #validate the content of this object
-        self.validate()
+        try:
+            self.validate()
+        except SISError as e:
+            if not ignorewarning:
+                raise
+            else:
+                print ("Warning:", e)
         for contentdict in [self.elemdict, self.attribdict]:
             for k, v in contentdict.items():
                 datatype, isreqd, ismulti = v
@@ -324,9 +330,9 @@ class SISBase(object):
                             # Multivalue possible, stored as a list. Export a list of dictionaries
                             exp[k] = []
                             for o in val:
-                                exp[k].append(o.exportdict())
+                                exp[k].append(o.exportdict(ignorewarning))
                         else:
-                            exp[k] = val.exportdict()
+                            exp[k] = val.exportdict(ignorewarning)
 
         return exp
     def getattrxml (self):
@@ -343,11 +349,17 @@ class SISBase(object):
         axml = ' ' + ' '.join(alist) if alist else ''
         return axml
 
-    def exportxml(self, outfile, nstag='FDSNStationXML', level=0):
+    def exportxml(self, outfile, nstag='FDSNStationXML', level=0, ignorewarning=False):
         '''Write the xml for this object and its subelements. '''
         #validate the content of this object
-        self.validate()
-
+        try:
+            self.validate()
+        except SISError as e:
+            if not ignorewarning:
+                raise
+            else:
+                print ("Warning:", e)
+                
         # Get an xml string with attributes formatted as key='val'
         axml = self.getattrxml()
         if level == 0:
@@ -379,22 +391,28 @@ class SISBase(object):
                     if isinstance(datatype, str):
                         outfile.write(self.enclosetag(datatype, sublevel, nsk, v))
                     else:
-                        v.exportxml(outfile, nsk, sublevel)
+                        v.exportxml(outfile, nsk, sublevel, ignorewarning)
                 else:
                     vlist = getattr(self, k)
                     for v in vlist:
                         if v is None:
-                            print("Warning: found None in attr list for {}, skipping".format(k))
+                             print("Warning: found None in list for {0}, skipping".format(k))
                         elif isinstance(datatype, str):
                             outfile.write(self.enclosetag(datatype, sublevel, nsk, v))
                         else:
-                            v.exportxml(outfile, nsk, sublevel)
+                            v.exportxml(outfile, nsk, sublevel, ignorewarning)
         outfile.write('{0}</{1}>{2}'.format(INDENT*level, nstag, os.linesep))
 
-    def exportobj(self, outfile, level=0):
+    def exportobj(self, outfile, level=0, ignorewarning=False):
         '''Write out a python object representation. '''
-        self.validate()
-
+        try:
+            self.validate()
+        except SISError as e:
+            if not ignorewarning:
+                raise
+            else:
+                print ("Warning:", e)
+ 
         if level == 0:
             #For the outer most class add its name
             outfile.write('{0}={1}({2}'.format('rootobj', self.__class__.__name__, os.linesep))
@@ -413,13 +431,13 @@ class SISBase(object):
                         level = level+1
                         for elem in v:
                             outfile.write('{0}{1}({2}'.format(INDENT*level, elem.__class__.__name__, os.linesep))
-                            elem.exportobj(outfile, level+1)
+                            elem.exportobj(outfile, level+1, ignorewarning)
                             outfile.write ('{0}),{1}'.format(INDENT*level, os.linesep))
                         outfile.write('{0}],{1}'.format(INDENT*level, os.linesep))
                         level = level - 1
                     else:
                         outfile.write('{0}{1}={2}({3}'.format(INDENT*level, k, v.__class__.__name__, os.linesep))
-                        v.exportobj(outfile, level+1)
+                        v.exportobj(outfile, level+1, ignorewarning)
                         outfile.write ('{0}),{1}'.format(INDENT*level, os.linesep))
 
         if level == 1:
@@ -451,9 +469,15 @@ class SISSimpleType(SISBase):
     def buildchildren(self, child, node):
         pass
 
-    def exportxml(self, outfile, nstag, level):
+    def exportxml(self, outfile, nstag, level, ignorewarning=False):
         '''Export the value in ValueOf as the content of the passed in tag. '''
-        self.validate()
+        try:
+            self.validate()
+        except SISError as e:
+            if not ignorewarning:
+                raise
+            else:
+                print ("Warning:", e)
         axml = self.getattrxml()
         ndatatype = self.ELEMS[0][1]
 
@@ -670,11 +694,11 @@ class LatitudeType(DegreeMixin, FloatType):
         if self.ValueOf <-90 or self.ValueOf > 90:
             raise SISError(f'Invalid Latitude: {self.ValueOf}')
 
-    #Override default exponential out format and precision defined for FloatType.
-    # Not needed in sisxmlparser3_0 since there is format is defined that needs overriding.
-    # And let the dataless converter handle the reduced precision defined in the SEED format.
+    #Override default exponential out format and precision defined for FloatType. 
+    # Not needed in sisxmlparser3_0 since there is format is defined that needs overriding. 
+    # And let the dataless converter handle the reduced precision defined in the SEED format. 
     # Leaving it in as a comment to keep an example and if it needs to be revived
-
+    
     #def format_decimal(self, input_data):
     #    return FMT_DEC_6.format(input_data)
 
@@ -1372,6 +1396,8 @@ def main():
     parser.add_argument('--xmltype', choices=['sis', 'fdsn'], default='sis',
                         help='Use "sis" for ExtStationXML and "fdsn" for FDSNStationXML')
 
+    parser.add_argument('--ignorewarning', action='store_true', default=False)
+
     options = parser.parse_args()
     if options.xmltype == 'sis' :
         isExt = True
@@ -1381,16 +1407,18 @@ def main():
     obj = parse(options.xmlfile, isExt)
 
     # Export xml
-    obj.exportxml(sys.stdout)
+    obj.exportxml(sys.stdout, ignorewarning=options.ignorewarning)
 
     # Export the python object representation
-    obj.exportobj(sys.stdout)
+    obj.exportobj(sys.stdout, ignorewarning=options.ignorewarning)
 
     ## Convert the python object into a dictionary
-    exp = obj.exportdict()
+    exp = obj.exportdict(ignorewarning=options.ignorewarning)
     import pprint
     pp = pprint.PrettyPrinter(indent=1)
     pp.pprint(exp)
 
 if __name__ == '__main__':
     main()
+
+
