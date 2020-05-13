@@ -359,7 +359,7 @@ class SISBase(object):
                 raise
             else:
                 print ("Warning:", e)
-                
+
         # Get an xml string with attributes formatted as key='val'
         axml = self.getattrxml()
         if level == 0:
@@ -412,7 +412,7 @@ class SISBase(object):
                 raise
             else:
                 print ("Warning:", e)
- 
+
         if level == 0:
             #For the outer most class add its name
             outfile.write('{0}={1}({2}'.format('rootobj', self.__class__.__name__, os.linesep))
@@ -694,11 +694,11 @@ class LatitudeType(DegreeMixin, FloatType):
         if self.ValueOf <-90 or self.ValueOf > 90:
             raise SISError(f'Invalid Latitude: {self.ValueOf}')
 
-    #Override default exponential out format and precision defined for FloatType. 
-    # Not needed in sisxmlparser3_0 since there is format is defined that needs overriding. 
-    # And let the dataless converter handle the reduced precision defined in the SEED format. 
+    #Override default exponential out format and precision defined for FloatType.
+    # Not needed in sisxmlparser3_0 since there is format is defined that needs overriding.
+    # And let the dataless converter handle the reduced precision defined in the SEED format.
     # Leaving it in as a comment to keep an example and if it needs to be revived
-    
+
     #def format_decimal(self, input_data):
     #    return FMT_DEC_6.format(input_data)
 
@@ -1420,5 +1420,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
