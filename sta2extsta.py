@@ -139,145 +139,178 @@ def isOnlyGainStage(namedResponse, sNum):
 
 def fixResponseNRL(n, s, c, uniqResponse, namespace):
 
-  chanCodeId = checkNRL.getChanCodeId(n, s, c)
+    chanCodeId = checkNRL.getChanCodeId(n, s, c)
 
-  if VERBOSE:
-      print("fixResponseNRL: %s"%(chanCodeId,))
-  if c.Response is None:
-     print("Channel has no Response: "+chanCodeId)
-     return
+    if VERBOSE:
+        print("fixResponseNRL: %s"%(chanCodeId,))
+    if c.Response is None:
+        print("Channel has no Response: "+chanCodeId)
+        return
 
-  oldResponse = c.Response
-  c.Response = sisxmlparser.SISResponseType()
-  if hasattr(oldResponse, 'InstrumentSensitivity'):
-      c.Response.InstrumentSensitivity = oldResponse.InstrumentSensitivity
-  elif hasattr(oldResponse, 'InstrumentPolynomial'):
-      c.Response.InstrumentPolynomial = oldResponse.InstrumentPolynomial
-  else:
-      # need to calculate overall sensitivity
-      print("WARNING: %s does not have InstrumentSensitivity or InstrumentPolynomial, this is required in SIS."%(chanCodeId,))
+    oldResponse = c.Response
+    c.Response = sisxmlparser.SISResponseType()
+    if hasattr(oldResponse, 'InstrumentSensitivity'):
+        c.Response.InstrumentSensitivity = oldResponse.InstrumentSensitivity
+    elif hasattr(oldResponse, 'InstrumentPolynomial'):
+        c.Response.InstrumentPolynomial = oldResponse.InstrumentPolynomial
+    else:
+        # need to calculate overall sensitivity
+        print("WARNING: %s does not have InstrumentSensitivity or InstrumentPolynomial, this is required in SIS."%(chanCodeId,))
 
-  if hasattr(c, 'Sensor'):
-      #sometimes equipment comment in Sensor.Type
-      if hasattr(c.Sensor, 'Type'):
-          if not hasattr(c, 'Comment'):
-              c.Comment = []
-          comment = sisxmlparser.CommentType()
-          comment.Value = "Sensor.Type: "+c.Sensor.Type
-          c.Comment.append(comment)
-      del c.Sensor
-  if not hasattr(oldResponse, 'Stage'):
-      print("WARNING: %s's Response does not have any Stage elements."%(chanCodeId,))
-      return
+    if hasattr(c, 'Sensor'):
+        #sometimes equipment comment in Sensor.Type
+        if hasattr(c.Sensor, 'Type'):
+            if not hasattr(c, 'Comment'):
+                c.Comment = []
+            comment = sisxmlparser.CommentType()
+            comment.Value = "Sensor.Type: "+c.Sensor.Type
+            c.Comment.append(comment)
+        del c.Sensor
+    if not hasattr(oldResponse, 'Stage'):
+        print("WARNING: %s's Response does not have any Stage elements."%(chanCodeId,))
+        return
 
-  sensorSubResponse = sisxmlparser.SubResponseType()
-  sensorSubResponse.sequenceNumber = 1
-  preampSubResponse = sisxmlparser.SubResponseType()
-  preampSubResponse.sequenceNumber = 2
-  atodSubResponse = sisxmlparser.SubResponseType()
-  atodSubResponse.sequenceNumber = 3
-  loggerSubResponse = sisxmlparser.SubResponseType()
-  loggerSubResponse.sequenceNumber = 4
-  for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqResponse:
-      for xcode in chanCodeList:
-          if xcode == chanCodeId:
-              # sensor ######
-              # but SOH channels sometimes have only 1 stage, so no logger
-              if len(sss) == 0:
-                  if len(oldResponse.Stage) == 1:
-                      # but SOH channels sometimes have only 1 stage, so no sensor
-                      pass
-                  if VERBOSE: print("        sensor not NRL, use named resp: %s"%(xcode,))
-                  # not nrl, so use named response
+    sensorSubResponse = sisxmlparser.SubResponseType()
+    sensorSubResponse.sequenceNumber = 1
+    preampSubResponse = sisxmlparser.SubResponseType()
+    preampSubResponse.sequenceNumber = 2
+    atodSubResponse = sisxmlparser.SubResponseType()
+    atodSubResponse.sequenceNumber = 3
+    loggerSubResponse = sisxmlparser.SubResponseType()
+    loggerSubResponse.sequenceNumber = 4
+    for prototypeChan, namedResponse, chanCodeList, sss, lll in uniqResponse:
+        for xcode in chanCodeList:
+            if xcode == chanCodeId:
+                # sensor ######
+                # but SOH channels sometimes have only 1 stage, so no logger
+                if len(sss) == 0:
+                    if VERBOSE: print("        sensor not NRL, use named resp: %s"%(xcode,))
+                    # not nrl, so use named response
 
-                  sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType2()
-                  sensorSubResponse.ResponseDictLink.Name = "S_"+prototypeChan
-                  sensorSubResponse.ResponseDictLink.SISNamespace = namespace
-                  sensorSubResponse.ResponseDictLink.Type = 'PolesZeros'
-                  sensorSubResponse.ResponseDictLink.Gain = sisxmlparser.SISGainType()
-                  sensorSubResponse.ResponseDictLink.Gain.Value = oldResponse.Stage[0].StageGain.Value
-                  sensorSubResponse.ResponseDictLink.Gain.Frequency = oldResponse.Stage[0].StageGain.Frequency
-                  if hasattr(oldResponse.Stage[0], 'PolesZeros'):
-                      sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].PolesZeros.InputUnits
-                      sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].PolesZeros.OutputUnits
-                  elif hasattr(oldResponse.Stage[0], 'Coefficients'):
-                      if VERBOSE: print("         sensor has no PolesZeros in stage, use Coefficients: {}".format(xcode))
-                      sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].Coefficients.InputUnits
-                      sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].Coefficients.OutputUnits
-                  else:
-                      if VERBOSE: print("         WARNING: sensor has no PolesZeros or Coefficients in stage: {}".format(xcode))
+                    if isSimpleSOHSingleStage(namedResponse):
+                        # but SOH channels sometimes have only 1 stage, so no sensor, only atod
+                        sensorSubResponse = None
+                    else:
+                        sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType2()
+                        sensorSubResponse.ResponseDictLink.Name = "S_"+prototypeChan
+                        sensorSubResponse.ResponseDictLink.SISNamespace = namespace
+
+                        if hasattr(oldResponse.Stage[0], 'Polynomial'):
+                            # polynomial doesn't use Gain
+                            sensorSubResponse.ResponseDictLink.Type = 'Polynomial'
+                        else:
+                            if not hasattr(oldResponse.Stage[0], 'StageGain'):
+                                raise Exception("         sensor has no StageGain in stage 0: {}".format(xcode))
+                            sensorSubResponse.ResponseDictLink.Gain = sisxmlparser.SISGainType()
+                            sensorSubResponse.ResponseDictLink.Gain.Value = oldResponse.Stage[0].StageGain.Value
+                            sensorSubResponse.ResponseDictLink.Gain.Frequency = oldResponse.Stage[0].StageGain.Frequency
+                            if hasattr(oldResponse.Stage[0], 'PolesZeros'):
+                                sensorSubResponse.ResponseDictLink.Type = 'PolesZeros'
+                                sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].PolesZeros.InputUnits
+                                sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].PolesZeros.OutputUnits
+                            elif hasattr(oldResponse.Stage[0], 'Coefficients'):
+                                if VERBOSE: print("         sensor has no PolesZeros in stage, use Coefficients: {}".format(xcode))
+                                sensorSubResponse.ResponseDictLink.Type = 'Coefficients'
+                                sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].Coefficients.InputUnits
+                                sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].Coefficients.OutputUnits
+                            else:
+                                if VERBOSE: print("         WARNING: sensor has no PolesZeros, Coefficients or Polynomial in stage: {}".format(xcode))
 
 
-              else:
-                  if len(sss) > 1:
-                    print("       WARNING: %s has more than one matching sensor response in NRL, using first"%(chanCodeId,))
+                else:
+                    if len(sss) > 1:
+                        print("       WARNING: %s has more than one matching sensor response in NRL, using first"%(chanCodeId,))
                     for temps in sss:
-                      print("         %s"%(temps[0],))
-                  if VERBOSE: print("        sensor in NRL: %s"%(xcode,))
-                  sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
-                  sensorSubResponse.RESPFile.ValueOf = sss[0][0].replace("nrl", NRL_PREFIX)
-                  # stage To/From not required for NRL responses, use SIS rules
-                  #sensorSubResponse.RESPFile.stageFrom = 1
-                  #sensorSubResponse.RESPFile.stageTo = 1
-              # datalogger #######
-              if len(lll) == 0:
-                  if VERBOSE: print("        logger not NRL, use named resp: %s"%(xcode,))
-                  # not nrl, so use named response
-                  if isSimpleSOHSingleStage(namedResponse):
-                      # simple 1 stage, coeff count->count stage
-                      atodSubResponse.sequenceNumber = 1
-                  else:
-                      preampStage = findPreampStage(namedResponse)
-                      if preampStage > 0:
-                          preampSubResponse.PreampGain = namedResponse.Stage[preampStage-1].StageGain.Value
-                          if hasattr(namedResponse.Stage[preampStage-1], 'PolesZeros'):
-                              preampSubResponse.PolesZeros = namedResponse.Stage[preampStage-1].PolesZeros
-                      else:
-                          preampSubResponse = None
-                          atodSubResponse.sequenceNumber = findAtoDStage(namedResponse)
-                          if atodSubResponse.sequenceNumber < 0:
-                              raise Exception('Cannot find AtoD stage in {}'.format(namedResponse))
-                          loggerSubResponse.sequenceNumber = atodSubResponse.sequenceNumber +1
+                        print("         %s"%(temps[0],))
+                    if VERBOSE: print("        sensor in NRL: %s"%(xcode,))
+                    sensorSubResponse.RESPFile = sisxmlparser.RESPFileType()
+                    sensorSubResponse.RESPFile.ValueOf = sss[0][0].replace("nrl", NRL_PREFIX)
+                    # stage To/From not required for NRL responses, use SIS rules
+                    #sensorSubResponse.RESPFile.stageFrom = 1
+                    #sensorSubResponse.RESPFile.stageTo = 1
+                # datalogger #######
+                if len(lll) == 0:
+                    if VERBOSE: print("        logger not NRL, use named resp: %s"%(xcode,))
+                    # not nrl, so use named response
+                    if isSimpleSOHSingleStage(namedResponse):
+                        # simple 1 stage, coeff count->count stage
+                        preampSubResponse = None
+                        atodSubResponse.sequenceNumber = 1
+                        loggerSubResponse = None
+                    else:
+                        preampStage = findPreampStage(namedResponse)
+                        if preampStage > 0:
+                            preampSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
+                            preampSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
+                            preampSubResponse.ResponseDetail.Gain.Value = namedResponse.Stage[preampStage-1].StageGain.Value
+                            preampSubResponse.ResponseDetail.Gain.Frequency = namedResponse.Stage[preampStage-1].StageGain.Frequency
+                            preampSubResponse.ResponseDetail.Gain.InputUnits = sisxmlparser.UnitsType
+                            preampSubResponse.ResponseDetail.Gain.InputUnits.Name = "None Specified"
+                            preampSubResponse.ResponseDetail.Gain.OutputUnits = sisxmlparser.UnitsType
+                            preampSubResponse.ResponseDetail.Gain.OutputUnits.Name = "None Specified"
+                            if hasattr(namedResponse.Stage[preampStage-1], 'PolesZeros'):
+                                preampSubResponse.ResponseDetail.PolesZeros = namedResponse.Stage[preampStage-1].PolesZeros
+                            else:
+                                # try to find input units for StageGain-only stage from prev and next stages
+                                # and store in sis style Gain
+                                if hasattr(namedResponse.Stage[preampStage-2], 'PolesZeros'):
+                                    preampSubResponse.ResponseDetail.Gain.InputUnits = namedResponse.Stage[preampStage-2].PolesZeros.OutputUnits
+                                else:
+                                    raise Exception("can't get prior units for gain only stage: {}  prev: {}".format(s.exportdict(ignorewarning=True), namedResponse.Stage[preampStage-2].exportdict(ignorewarning=True)))
+                                if hasattr(namedResponse.Stage[preampStage], 'Coefficients'):
+                                    preampSubResponse.ResponseDetail.Gain.OutputUnits = namedResponse.Stage[preampStage].Coefficients.InputUnits
+                                elif hasattr(namedResponse.Stage[preampStage], "FIR"):
+                                    preampSubResponse.ResponseDetail.Gain.OutputUnits = namedResponse.Stage[logpreampStagegerStartStage].FIR.InputUnits
+                                else:
+                                    raise Exception("can't get next units for gain only stage: {}  next: {}".format(s.exportdict(ignorewarning=True), namedResponse.Stage[preampStage].exportdict(ignorewarning=True)))
 
-                      isAtoD, isAtoDReason = isAtoDStage(namedResponse, atodSubResponse.sequenceNumber)
-                      if not isAtoD:
-                          raise Exception('Expected AtoD stage as {}, but does not look like V to count Coefficients: {}, {}'.format(loggerSubResponse.sequenceNumber, chanCodeId, isAtoDReason))
-                  atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
-                  atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
-                  atodOld = namedResponse.Stage[atodSubResponse.sequenceNumber-1]
-                  atodSubResponse.ResponseDetail.Gain.Value = atodOld.StageGain.Value
-                  atodSubResponse.ResponseDetail.Gain.Frequency = atodOld.StageGain.Frequency
-                  atodSubResponse.ResponseDetail.Gain.InputUnits = atodOld.Coefficients.InputUnits
-                  atodSubResponse.ResponseDetail.Gain.OutputUnits = atodOld.Coefficients.OutputUnits
-                  # check make sure there are more stages
-                  if len(namedResponse.Stage) < loggerSubResponse.sequenceNumber:
-                      loggerSubResponse = None
-                  else:
-                      loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
-                      loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
-                      loggerSubResponse.ResponseDictLink.SISNamespace = namespace
-                      loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
-              else:
-                  if len(lll) > 1:
-                    print("       WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,))
-                    for templ in lll:
-                      print("         %s"%(templ[0],))
-                  if VERBOSE: print("        logger in NRL: %s"%(xcode,))
-                  loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
-                  loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
-                  # stage To/From not required for NRL responses, use SIS rules
-                  #loggerSubResponse.RESPFile.stageFrom = lll[0][2]
-                  #loggerSubResponse.RESPFile.stageTo = lll[0][3]
+                        else:
+                            preampSubResponse = None
+                            atodSubResponse.sequenceNumber = findAtoDStage(namedResponse)
+                            if atodSubResponse.sequenceNumber < 0:
+                                raise Exception('Cannot find AtoD stage in {}'.format(namedResponse))
+                            loggerSubResponse.sequenceNumber = atodSubResponse.sequenceNumber +1
 
-  c.Response.SubResponse = []
-  c.Response.SubResponse.append( sensorSubResponse)
-  if preampSubResponse != None:
-      c.Response.SubResponse.append(preampSubResponse)
-  if atodSubResponse != None:
-      # might be None in case of NRL logger
-      c.Response.SubResponse.append(atodSubResponse)
-  if loggerSubResponse is not None:
-      c.Response.SubResponse.append( loggerSubResponse )
+                        isAtoD, isAtoDReason = isAtoDStage(namedResponse, atodSubResponse.sequenceNumber)
+                        if not isAtoD:
+                            raise Exception('Expected AtoD stage as {}, but does not look like V to count Coefficients: {}, {}'.format(loggerSubResponse.sequenceNumber, chanCodeId, isAtoDReason))
+                    atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
+                    atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
+                    atodOld = namedResponse.Stage[atodSubResponse.sequenceNumber-1]
+                    atodSubResponse.ResponseDetail.Gain.Value = atodOld.StageGain.Value
+                    atodSubResponse.ResponseDetail.Gain.Frequency = atodOld.StageGain.Frequency
+                    atodSubResponse.ResponseDetail.Gain.InputUnits = atodOld.Coefficients.InputUnits
+                    atodSubResponse.ResponseDetail.Gain.OutputUnits = atodOld.Coefficients.OutputUnits
+                    # check make sure there are more stages
+                    if loggerSubResponse is None or len(namedResponse.Stage) < loggerSubResponse.sequenceNumber:
+                        loggerSubResponse = None
+                    else:
+                        loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
+                        loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
+                        loggerSubResponse.ResponseDictLink.SISNamespace = namespace
+                        loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
+                else:
+                    if len(lll) > 1:
+                        print("       WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,))
+                        for templ in lll:
+                            print("         %s"%(templ[0],))
+                    if VERBOSE: print("        logger in NRL: %s"%(xcode,))
+                    loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
+                    loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
+                    # stage To/From not required for NRL responses, use SIS rules
+                    #loggerSubResponse.RESPFile.stageFrom = lll[0][2]
+                    #loggerSubResponse.RESPFile.stageTo = lll[0][3]
+
+    c.Response.SubResponse = []
+    if sensorSubResponse is not  None:
+        c.Response.SubResponse.append( sensorSubResponse)
+    if preampSubResponse is not  None:
+        c.Response.SubResponse.append(preampSubResponse)
+    if atodSubResponse is not  None:
+        # might be None in case of NRL logger
+        c.Response.SubResponse.append(atodSubResponse)
+    if loggerSubResponse is not None:
+        c.Response.SubResponse.append( loggerSubResponse )
 
 def toSISPolesZeros(pz):
     sisPZ = sisxmlparser.SISPolesZerosType()
@@ -294,6 +327,33 @@ def toSISPolesZeros(pz):
         sisPZ.Pole = pz.Pole
     return sisPZ
 
+def toSISCoefficients(coef):
+    sisCoef = sisxmlparser.SISCoefficientsType()
+    if hasattr(coef, 'Description'):
+        sisCoef.Description = coef.Description
+    sisCoef.InputUnits = coef.InputUnits
+    sisCoef.OutputUnits = coef.OutputUnits
+    sisCoef.CfTransferFunctionType = coef.CfTransferFunctionType
+    if hasattr(coef, 'Numerator'):
+        sisCoef.Numerator = coef.Numerator
+    if hasattr(coef, 'Denominator'):
+        sisCoef.Denominator = coef.Denominator
+    return sisCoef
+
+def toSISPolynomial(poly):
+    sisPoly = sisxmlparser.SISPolynomialType()
+    if hasattr(poly, 'Description'):
+        sisPoly.Description = poly.Description
+    sisPoly.InputUnits = poly.InputUnits
+    sisPoly.OutputUnits = poly.OutputUnits
+    sisPoly.ApproximationType = poly.ApproximationType
+    sisPoly.FrequencyLowerBound = poly.FrequencyLowerBound
+    sisPoly.FrequencyUpperBound = poly.FrequencyUpperBound
+    sisPoly.ApproximationLowerBound = poly.ApproximationLowerBound
+    sisPoly.ApproximationUpperBound = poly.ApproximationUpperBound
+    sisPoly.MaximumError = poly.MaximumError
+    sisPoly.Coefficient = poly.Coefficient
+    return sisPoly
 
 def createResponseDict(prototypeChan, s, sisNamespace):
     '''create sis ResponseDict from a Stage'''
@@ -325,9 +385,11 @@ def createResponseDict(prototypeChan, s, sisNamespace):
             rd.Coefficients.Denominator = s.Coefficients.Denominator
         rd.Coefficients.name = "FS_%d_%s"%(s.number, prototypeChan)
         rd.Coefficients.SISNamespace = sisNamespace
-    else:
-        print("ERROR: stage does not have PZ, FIR or Coef: %s stage %s   \n%s"%(prototypeChan, s.number, dir(s)))
+    elif hasattr(s, "StageGain") and hasattr(s.StageGain, 'InputUnits') and hasattr(s.StageGain, 'OutputUnits'):
+        # preamp gain only stage, but we already fixed the units
         rd = None
+    else:
+        raise Exception("ERROR: createResponseDict stage does not have PZ, FIR or Coef: %s stage %s   \n%s"%(prototypeChan, s.number, s.exportdict(ignorewarning=True)))
     return rd
 
 
@@ -335,7 +397,6 @@ def main():
     global VERBOSE
     sisNamespace = "TESTING"
     parseArgs = initArgParser()
-    print("in main")
     if parseArgs.verbose:
         VERBOSE=True
         for k, v in vars(parseArgs).items():
@@ -490,10 +551,21 @@ def main():
                     sensor.PolesZeros = toSISPolesZeros(namedResponse.Stage[0].PolesZeros)
                     sensor.PolesZeros.name = "S_"+prototypeChan
                     sensor.PolesZeros.SISNamespace = sisNamespace
+                elif hasattr(namedResponse.Stage[0], "Coefficients"):
+                    sensor.Coefficients = toSISCoefficients(namedResponse.Stage[0].Coefficients)
+                    sensor.Coefficients.name = "S_"+prototypeChan
+                    sensor.Coefficients.SISNamespace = sisNamespace
+                elif isSimpleSOHSingleStage(namedResponse):
+                    sensor = None
+                elif hasattr(namedResponse.Stage[0], "Polynomial"):
+                    sensor.Polynomial = toSISPolynomial(namedResponse.Stage[0].Polynomial)
+                    sensor.Polynomial.name = "S_"+prototypeChan
+                    sensor.Polynomial.SISNamespace = sisNamespace
                 else:
                     print("WARNING: sensor response for %s doesnot have PolesZeros"%(prototypeChan,))
                     return
-                respGroup.ResponseDict.append(sensor)
+                if sensor is not None:
+                    respGroup.ResponseDict.append(sensor)
 
             if len(lll) == 0:
                 # add later stages as logger
@@ -511,60 +583,56 @@ def main():
 
                 # now deal with actual filter chain
 
+                respDictSeqNum = 1
                 for s in namedResponse.Stage[loggerStartStage -1 : ]:
-                   # first search to see if we have already added this filter stage
-                   found = False
-                   for oldName, oldStage in prevAddedFilterStage.items():
+                    # do not output preamp or atod as part of filter seq.
+                    if s.number == loggerStartStage and isPreampStage(namedResponse, loggerStartStage):
+                        continue
+                    if s.number == loggerStartStage and isAtoDStage(namedResponse, loggerStartStage):
+                        continue
+                    if s.number == loggerStartStage+1 and isAtoDStage(namedResponse, loggerStartStage+1):
+                        continue
+
+                    filterStage = sisxmlparser.FilterStageType()
+                    filterStage.SequenceNumber = respDictSeqNum
+                    respDictSeqNum += 1
+
+                    if hasattr(s, "Decimation"):
+                       filterStage.Decimation = s.Decimation
+                    else:
+                       print("No decimation in %s stage %d but it is required"%(prototypeChan, s.number))
+                    if hasattr(s, "StageGain"):
+                       filterStage.Gain = s.StageGain
+                    filterStage.Filter = sisxmlparser.FilterIDType()
+
+                    # search to see if we have already added this filter stage
+                    found = False
+                    for oldName, oldStage in prevAddedFilterStage.items():
                        if uniqResponses.areSameStage(s, oldStage)[0]:
                            found=True
                            break
-                   filterStage = sisxmlparser.FilterStageType()
-                   filterStage.SequenceNumber = s.number
 
-                   if hasattr(s, "Decimation"):
-                       filterStage.Decimation = s.Decimation
-                   elif s.number == loggerStartStage and isPreampStage(namedResponse, loggerStartStage):
-                       pass
-                   else:
-                       print("No decimation in %s stage %d but it is required"%(prototypeChan, s.number))
-                   if hasattr(s, "StageGain"):
-                       filterStage.Gain = s.StageGain
-                       if s.number == loggerStartStage and \
-                       isPreampStage(namedResponse, loggerStartStage) and \
-                       not (hasattr(s, 'PolesZeros') or hasattr(s, 'Coefficients') or hasattr(s, 'FIR')):
-                           # try to find input units for StageGain-only stage from prev and next stages
-                           # and store in sis style Gain
-                           if hasattr(namedResponse.Stage[loggerStartStage-2], 'PolesZeros'):
-                               filterStage.Gain.InputUnits = namedResponse.Stage[loggerStartStage-2].PolesZeros.OutputUnits
-                           if hasattr(namedResponse.Stage[loggerStartStage], 'Coefficients'):
-                               filterStage.Gain.OutputUnits = namedResponse.Stage[loggerStartStage].Coefficients.InputUnits
-                           elif hasattr(namedResponse.Stage[loggerStartStage], "FIR"):
-                               filterStage.Gain.OutputUnits = namedResponse.Stage[loggerStartStage].FIR.InputUnits
-                   filterStage.Filter = sisxmlparser.FilterIDType()
-
-                   if not found:
+                    if not found:
                        filterStage.Filter.Name = "FS_%d_%s"%(s.number, prototypeChan)
                        rd = createResponseDict(prototypeChan, s, sisNamespace)
-                       respGroup.ResponseDict.append(rd)
-                       prevAddedFilterStage[filterStage.Filter.Name] = s
-                   else:
+                       if rd is not None:
+                           respGroup.ResponseDict.append(rd)
+                           prevAddedFilterStage[filterStage.Filter.Name] = s
+                    else:
                        filterStage.Filter.Name = oldName
-                   filterStage.Filter.SISNamespace = sisNamespace
-                   # set type
-                   if hasattr(s, "PolesZeros"):
+                    filterStage.Filter.SISNamespace = sisNamespace
+                    # set type
+                    if hasattr(s, "PolesZeros"):
                        filterStage.Filter.Type = "PolesZeros"
-                   elif hasattr(s, "FIR"):
+                    elif hasattr(s, "FIR"):
                        filterStage.Filter.Type = "FIR"
-                   elif hasattr(s, "Coefficients"):
+                    elif hasattr(s, "Coefficients"):
                        filterStage.Filter.Type = "Coefficients"
-                   elif s.number == loggerStartStage and isPreampStage(namedResponse, loggerStartStage) and hasattr(filterStage, 'Gain'):
-                       # preamp gain only stage taken care of above
-                       pass
-                   else:
-                       print("stage does not have PZ, FIR or Coef: %s stage %s   \n%s"%(prototypeChan, s.number, dir(s)))
+                    else:
+                       raise SISError("stage does not have PZ, FIR or Coef: %s stage %s   \n%s"%(prototypeChan, s.number, s.exportdict(ignorewarning=True)))
 
-                   logger.FilterSequence.FilterStage.append(filterStage)
-                if len(namedResponse.Stage[loggerStartStage : ]) > 0:
+                    logger.FilterSequence.FilterStage.append(filterStage)
+                if len(logger.FilterSequence.FilterStage) > 0:
                    # only add if not empty
                    respGroup.ResponseDict.append(logger)
 
