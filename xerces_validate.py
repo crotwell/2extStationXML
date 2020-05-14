@@ -38,10 +38,10 @@ wget -O sis_extension_3.0.xsd https://anss-sis.scsn.org/xml/ext-stationxml/3.0/s
             validateOut = "error calling process: " + str(e.output)
         validateOut = validateOut.strip()
         if not validateOut == b'0':
-            print("ERROR: invalid stationxml document, errors: '%s'"%(validateOut,))
+            print("  ERROR: invalid stationxml document, errors: '%s'"%(validateOut,))
             return False
         else:
-            print("OK")
+            print("  OK")
             return True
     else:
         print("""
