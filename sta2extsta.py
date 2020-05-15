@@ -153,6 +153,7 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
         c.Response.InstrumentSensitivity = oldResponse.InstrumentSensitivity
     elif hasattr(oldResponse, 'InstrumentPolynomial'):
         c.Response.InstrumentPolynomial = oldResponse.InstrumentPolynomial
+        c.Response.InstrumentPolynomial.SISNamespace = namespace
     else:
         # need to calculate overall sensitivity
         print("WARNING: %s does not have InstrumentSensitivity or InstrumentPolynomial, this is required in SIS."%(chanCodeId,))
