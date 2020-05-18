@@ -47,7 +47,7 @@
     targetNamespace="http://anss-sis.scsn.org/xml/ext-stationxml/3.0"
     xmlns:fsx="http://www.fdsn.org/xml/station/1"
     xmlns:sis="http://anss-sis.scsn.org/xml/ext-stationxml/3.0">
-    <xs:import schemaLocation="./fdsn-station-1.1.xsd" namespace="http://www.fdsn.org/xml/station/1"/>
+    <xs:import schemaLocation="fdsn-station-1.1.xsd" namespace="http://www.fdsn.org/xml/station/1"/>
     <xs:complexType name="RootType">
         <xs:complexContent>
             <xs:extension base="fsx:RootType">
