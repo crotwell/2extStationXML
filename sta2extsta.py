@@ -137,22 +137,20 @@ def isOnlyGainStage(namedResponse, sNum):
     else:
         return True
 
-def fixResponseNRL(n, s, c, uniqResponse, namespace):
+def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
 
     chanCodeId = checkNRL.getChanCodeId(n, s, c)
 
     if VERBOSE:
         print("fixResponseNRL: %s"%(chanCodeId,))
-    if c.Response is None:
+    if oldResponse is None:
         print("Channel has no Response: "+chanCodeId)
         return
-
-    oldResponse = c.Response
     c.Response = sisxmlparser.SISResponseType()
     if hasattr(oldResponse, 'InstrumentSensitivity'):
         c.Response.InstrumentSensitivity = oldResponse.InstrumentSensitivity
     elif hasattr(oldResponse, 'InstrumentPolynomial'):
-        c.Response.InstrumentPolynomial = oldResponse.InstrumentPolynomial
+        c.Response.InstrumentPolynomial = toSISPolynomial(oldResponse.InstrumentPolynomial)
         c.Response.InstrumentPolynomial.SISNamespace = namespace
     else:
         # need to calculate overall sensitivity
@@ -312,6 +310,59 @@ def fixResponseNRL(n, s, c, uniqResponse, namespace):
         c.Response.SubResponse.append(atodSubResponse)
     if loggerSubResponse is not None:
         c.Response.SubResponse.append( loggerSubResponse )
+    return c
+
+def toSISChannel(ch):
+    sisCh = sisxmlparser.SISChannelType()
+    sisCh.settype('sis:ChannelType')
+    if hasattr(ch, 'Description'):
+        sisCh.Description = ch.Description
+    if hasattr(ch, 'Identifier'):
+        sisCh.Identifier = ch.Identifier
+    if hasattr(ch, 'Comment'):
+        sisCh.Comment = ch.Comment
+    sisCh.code = ch.code
+    sisCh.startDate = ch.startDate
+    if hasattr(ch, 'endDate'):
+        sisCh.endDate = ch.endDate
+    if hasattr(ch, 'sourceID'):
+        sisCh.sourceID = ch.sourceID
+    if hasattr(ch, 'restrictedStatus'):
+        sisCh.restrictedStatus = ch.restrictedStatus
+    if hasattr(ch, 'alternateCode'):
+        sisCh.alternateCode = ch.alternateCode
+    if hasattr(ch, 'historicalCode'):
+        sisCh.historicalCode = ch.historicalCode
+    if hasattr(ch, 'historicalCode'):
+        sisCh.ExternalReference = ch.ExternalReference
+    sisCh.Latitude = ch.Latitude
+    sisCh.Longitude = ch.Longitude
+    sisCh.Elevation = ch.Elevation
+    sisCh.Depth = ch.Depth
+    sisCh.Azimuth = ch.Azimuth
+    sisCh.Dip = ch.Dip
+    if hasattr(ch, 'historicalCode'):
+        sisCh.WaterLevel = ch.WaterLevel
+    if hasattr(ch, 'Type'):
+        sisCh.Type = ch.Type
+    if hasattr(ch, 'SampleRate'):
+        sisCh.SampleRate = ch.SampleRate
+    if hasattr(ch, 'histSampleRateRatiooricalCode'):
+        sisCh.SampleRateRatio = ch.SampleRateRatio
+    if hasattr(ch, 'ClockDrift'):
+        sisCh.ClockDrift = ch.ClockDrift
+    if hasattr(ch, 'CalibrationUnits'):
+        sisCh.CalibrationUnits = ch.CalibrationUnits
+    if hasattr(ch, 'Sensor'):
+        sisCh.Sensor = ch.Sensor
+    if hasattr(ch, 'PreAmplifier'):
+        sisCh.PreAmplifier = ch.PreAmplifier
+    if hasattr(ch, 'DataLogger'):
+        sisCh.DataLogger = ch.DataLogger
+    if hasattr(ch, 'Equipment'):
+        sisCh.Equipment = ch.Equipment
+    sisCh.locationCode = ch.locationCode
+    return sisCh
 
 def toSISPolesZeros(pz):
     sisPZ = sisxmlparser.SISPolesZerosType()
@@ -521,13 +572,17 @@ def main():
                  tempChan.append(c)
             s.Channel = tempChan
 
+            tempChan = []
             for c in s.Channel:
                 print("        %s.%s "%(c.locationCode, c.code,))
+                sisChan = toSISChannel(c)
                 key = "%s.%s"%(c.locationCode, c.code)
                 if not key in allChanCodes:
                     allChanCodes[key] = []
-                allChanCodes[key].append(c)
-                fixResponseNRL(n, s, c, uniqWithNRL, sisNamespace)
+                allChanCodes[key].append(sisChan)
+                fixResponseNRL(n, s, sisChan, c.Response, uniqWithNRL, sisNamespace)
+                tempChan.append(sisChan)
+            s.Channel = tempChan
 
             for key, epochList in allChanCodes.items():
               epochList.sort(key=getStartDate)
