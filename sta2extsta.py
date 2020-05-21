@@ -70,6 +70,10 @@ def isAtoDStage(namedResponse, sNum):
     reason = ""
     if not hasattr(stage, 'Coefficients'):
         reason = "Stage {}={} does not have Coefficients".format(sNum, stage.number)
+    elif hasattr(stage.Coefficients, 'Denominator'):
+        reason = "Stage {}={} has Coefficients with Denominator".format(sNum, stage.number)
+    elif hasattr(stage.Coefficients, 'Numerator'):
+        reason = "Stage {}={} has Coefficients with Numerator".format(sNum, stage.number)
     elif not hasattr(stage, 'Decimation'):
         reason = "Stage {}={} does not have Decimation".format(sNum, stage.number)
     elif not hasattr(stage.Coefficients, 'InputUnits'):
@@ -82,8 +86,7 @@ def isAtoDStage(namedResponse, sNum):
         reason = "Stage {}={} InputUnits {} are not V or volt".format(sNum, stage.number, stage.Coefficients.OutputUnits.Name)
     else:
         reason = ""
-        return True, reason
-    return False, reason
+    return reason == "", reason
 
 def findAtoDStage(namedResponse):
     for stage in namedResponse.Stage:
@@ -150,8 +153,7 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
     if hasattr(oldResponse, 'InstrumentSensitivity'):
         c.Response.InstrumentSensitivity = oldResponse.InstrumentSensitivity
     elif hasattr(oldResponse, 'InstrumentPolynomial'):
-        c.Response.InstrumentPolynomial = toSISPolynomial(oldResponse.InstrumentPolynomial)
-        c.Response.InstrumentPolynomial.SISNamespace = namespace
+        c.Response.InstrumentPolynomial = toSISPolynomial(oldResponse.InstrumentPolynomial, namespace)
     else:
         # need to calculate overall sensitivity
         print("WARNING: %s does not have InstrumentSensitivity or InstrumentPolynomial, this is required in SIS."%(chanCodeId,))
@@ -189,6 +191,9 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
                     if isSimpleSOHSingleStage(namedResponse):
                         # but SOH channels sometimes have only 1 stage, so no sensor, only atod
                         sensorSubResponse = None
+                        preampSubResponse.sequenceNumber -= 1
+                        atodSubResponse.sequenceNumber -= 1
+                        loggerSubResponse.sequenceNumber -= 1
                     else:
                         sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType2()
                         sensorSubResponse.ResponseDictLink.Name = "S_"+prototypeChan
@@ -230,14 +235,27 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
                 # datalogger #######
                 if len(lll) == 0:
                     if VERBOSE: print("        logger not NRL, use named resp: %s"%(xcode,))
+                    atodStageInOrig = 1
+                    loggerStageInOrig = 2
                     # not nrl, so use named response
                     if isSimpleSOHSingleStage(namedResponse):
                         # simple 1 stage, coeff count->count stage
                         preampSubResponse = None
                         atodSubResponse.sequenceNumber = 1
+                        atodStageInOrig = 1
                         loggerSubResponse = None
+                        loggerStageInOrig = 999
+                        atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
+                        atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
+                        atodOld = namedResponse.Stage[atodStageInOrig-1]
+                        atodSubResponse.ResponseDetail.Gain.Value = atodOld.StageGain.Value
+                        atodSubResponse.ResponseDetail.Gain.Frequency = atodOld.StageGain.Frequency
+                        atodSubResponse.ResponseDetail.Gain.InputUnits = atodOld.Coefficients.InputUnits
+                        atodSubResponse.ResponseDetail.Gain.OutputUnits = atodOld.Coefficients.OutputUnits
                     else:
                         preampStage = findPreampStage(namedResponse)
+                        atodStageInOrig = findAtoDStage(namedResponse)
+                        loggerStageInOrig = atodStageInOrig+1
                         if preampStage > 0:
                             preampSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
                             preampSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
@@ -265,29 +283,30 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
 
                         else:
                             preampSubResponse = None
-                            atodSubResponse.sequenceNumber = findAtoDStage(namedResponse)
-                            if atodSubResponse.sequenceNumber < 0:
-                                raise Exception('Cannot find AtoD stage in {}'.format(namedResponse))
+                            atodSubResponse.sequenceNumber -= 1
                             loggerSubResponse.sequenceNumber = atodSubResponse.sequenceNumber +1
 
-                        isAtoD, isAtoDReason = isAtoDStage(namedResponse, atodSubResponse.sequenceNumber)
+                        if atodStageInOrig < 0:
+                            raise Exception('Cannot find AtoD stage in {}'.format(namedResponse))
+
+                        isAtoD, isAtoDReason = isAtoDStage(namedResponse, atodStageInOrig)
                         if not isAtoD:
-                            raise Exception('Expected AtoD stage as {}, but does not look like V to count Coefficients: {}, {}'.format(loggerSubResponse.sequenceNumber, chanCodeId, isAtoDReason))
-                    atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
-                    atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
-                    atodOld = namedResponse.Stage[atodSubResponse.sequenceNumber-1]
-                    atodSubResponse.ResponseDetail.Gain.Value = atodOld.StageGain.Value
-                    atodSubResponse.ResponseDetail.Gain.Frequency = atodOld.StageGain.Frequency
-                    atodSubResponse.ResponseDetail.Gain.InputUnits = atodOld.Coefficients.InputUnits
-                    atodSubResponse.ResponseDetail.Gain.OutputUnits = atodOld.Coefficients.OutputUnits
-                    # check make sure there are more stages
-                    if loggerSubResponse is None or len(namedResponse.Stage) < loggerSubResponse.sequenceNumber:
-                        loggerSubResponse = None
-                    else:
-                        loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
-                        loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
-                        loggerSubResponse.ResponseDictLink.SISNamespace = namespace
-                        loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
+                            raise Exception('Expected AtoD stage as {}, but does not look like V to count Coefficients: {}, {}'.format(atodStageInOrig, chanCodeId, isAtoDReason))
+                        atodSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
+                        atodSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
+                        atodOld = namedResponse.Stage[atodStageInOrig-1]
+                        atodSubResponse.ResponseDetail.Gain.Value = atodOld.StageGain.Value
+                        atodSubResponse.ResponseDetail.Gain.Frequency = atodOld.StageGain.Frequency
+                        atodSubResponse.ResponseDetail.Gain.InputUnits = atodOld.Coefficients.InputUnits
+                        atodSubResponse.ResponseDetail.Gain.OutputUnits = atodOld.Coefficients.OutputUnits
+                        # check make sure there are more stages
+                        if loggerSubResponse is None or len(namedResponse.Stage) < loggerStageInOrig:
+                            loggerSubResponse = None
+                        else:
+                            loggerSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType()
+                            loggerSubResponse.ResponseDictLink.Name = "L_"+prototypeChan
+                            loggerSubResponse.ResponseDictLink.SISNamespace = namespace
+                            loggerSubResponse.ResponseDictLink.Type = 'FilterSequence'
                 else:
                     if len(lll) > 1:
                         print("       WARNING: %s has more than one matching logger response in NRL, using first"%(chanCodeId,))
@@ -313,130 +332,47 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
     return c
 
 def toSISChannel(ch):
-    sisCh = sisxmlparser.SISChannelType()
-    sisCh.settype('sis:ChannelType')
-    if hasattr(ch, 'Description'):
-        sisCh.Description = ch.Description
-    if hasattr(ch, 'Identifier'):
-        sisCh.Identifier = ch.Identifier
-    if hasattr(ch, 'Comment'):
-        sisCh.Comment = ch.Comment
-    sisCh.code = ch.code
-    sisCh.startDate = ch.startDate
-    if hasattr(ch, 'endDate'):
-        sisCh.endDate = ch.endDate
-    if hasattr(ch, 'sourceID'):
-        sisCh.sourceID = ch.sourceID
-    if hasattr(ch, 'restrictedStatus'):
-        sisCh.restrictedStatus = ch.restrictedStatus
-    if hasattr(ch, 'alternateCode'):
-        sisCh.alternateCode = ch.alternateCode
-    if hasattr(ch, 'historicalCode'):
-        sisCh.historicalCode = ch.historicalCode
-    if hasattr(ch, 'historicalCode'):
-        sisCh.ExternalReference = ch.ExternalReference
-    sisCh.Latitude = ch.Latitude
-    sisCh.Longitude = ch.Longitude
-    sisCh.Elevation = ch.Elevation
-    sisCh.Depth = ch.Depth
-    sisCh.Azimuth = ch.Azimuth
-    sisCh.Dip = ch.Dip
-    if hasattr(ch, 'historicalCode'):
-        sisCh.WaterLevel = ch.WaterLevel
-    if hasattr(ch, 'Type'):
-        sisCh.Type = ch.Type
-    if hasattr(ch, 'SampleRate'):
-        sisCh.SampleRate = ch.SampleRate
-    if hasattr(ch, 'histSampleRateRatiooricalCode'):
-        sisCh.SampleRateRatio = ch.SampleRateRatio
-    if hasattr(ch, 'ClockDrift'):
-        sisCh.ClockDrift = ch.ClockDrift
-    if hasattr(ch, 'CalibrationUnits'):
-        sisCh.CalibrationUnits = ch.CalibrationUnits
-    if hasattr(ch, 'Sensor'):
-        sisCh.Sensor = ch.Sensor
-    if hasattr(ch, 'PreAmplifier'):
-        sisCh.PreAmplifier = ch.PreAmplifier
-    if hasattr(ch, 'DataLogger'):
-        sisCh.DataLogger = ch.DataLogger
-    if hasattr(ch, 'Equipment'):
-        sisCh.Equipment = ch.Equipment
-    sisCh.locationCode = ch.locationCode
+    '''
+    copies all attrs from the input fdsn channel object to a sis channel, except
+    the Response as that needs to be a SISResponseType
+    '''
+    elemDict = ch.exportdict(ignorewarning=True)
+    elemDict.pop('Response')    # remove since this needs to SISResponseType
+    sisCh = sisxmlparser.SISChannelType(**elemDict)
     return sisCh
 
-def toSISPolesZeros(pz):
-    sisPZ = sisxmlparser.SISPolesZerosType()
-    if hasattr(pz, 'Description'):
-        sisPZ.Description = pz.Description
-    sisPZ.InputUnits = pz.InputUnits
-    sisPZ.OutputUnits = pz.OutputUnits
-    sisPZ.PzTransferFunctionType = pz.PzTransferFunctionType
-    sisPZ.NormalizationFactor = pz.NormalizationFactor
-    sisPZ.NormalizationFrequency = pz.NormalizationFrequency
-    if hasattr(pz, 'Zero'):
-        sisPZ.Zero = pz.Zero
-    if hasattr(pz, 'Pole'):
-        sisPZ.Pole = pz.Pole
+def toSISPolesZeros(pz, sisNamespace):
+    elemDict = pz.exportdict(ignorewarning=True)
+    sisPZ = sisxmlparser.SISPolesZerosType(**elemDict)
+    sisPZ.SISNamespace = sisNamespace
     return sisPZ
 
-def toSISCoefficients(coef):
-    sisCoef = sisxmlparser.SISCoefficientsType()
-    if hasattr(coef, 'Description'):
-        sisCoef.Description = coef.Description
-    sisCoef.InputUnits = coef.InputUnits
-    sisCoef.OutputUnits = coef.OutputUnits
-    sisCoef.CfTransferFunctionType = coef.CfTransferFunctionType
-    if hasattr(coef, 'Numerator'):
-        sisCoef.Numerator = coef.Numerator
-    if hasattr(coef, 'Denominator'):
-        sisCoef.Denominator = coef.Denominator
+def toSISCoefficients(coef, sisNamespace):
+    elemDict = coef.exportdict(ignorewarning=True)
+    sisCoef = sisxmlparser.SISCoefficientsType(**elemDict)
+    sisCoef.SISNamespace = sisNamespace
     return sisCoef
 
-def toSISPolynomial(poly):
-    sisPoly = sisxmlparser.SISPolynomialType()
-    if hasattr(poly, 'Description'):
-        sisPoly.Description = poly.Description
-    sisPoly.InputUnits = poly.InputUnits
-    sisPoly.OutputUnits = poly.OutputUnits
-    sisPoly.ApproximationType = poly.ApproximationType
-    sisPoly.FrequencyLowerBound = poly.FrequencyLowerBound
-    sisPoly.FrequencyUpperBound = poly.FrequencyUpperBound
-    sisPoly.ApproximationLowerBound = poly.ApproximationLowerBound
-    sisPoly.ApproximationUpperBound = poly.ApproximationUpperBound
-    sisPoly.MaximumError = poly.MaximumError
-    sisPoly.Coefficient = poly.Coefficient
+def toSISPolynomial(poly, sisNamespace):
+    elemDict = poly.exportdict(ignorewarning=True)
+    sisPoly = sisxmlparser.SISPolynomialType(**elemDict)
+    sisPoly.SISNamespace = sisNamespace
     return sisPoly
 
 def createResponseDict(prototypeChan, s, sisNamespace):
     '''create sis ResponseDict from a Stage'''
     rd = sisxmlparser.ResponseDictType()
     if hasattr(s, "PolesZeros"):
-        rd.PolesZeros = toSISPolesZeros(s.PolesZeros)
+        rd.PolesZeros = toSISPolesZeros(s.PolesZeros, sisNamespace)
         rd.PolesZeros.name = "FS_%d_%s"%(s.number, prototypeChan)
-        rd.PolesZeros.SISNamespace = sisNamespace
     elif hasattr(s, "FIR"):
-        rd.FIR = sisxmlparser.SISFIRType()
-        if hasattr(s.FIR, 'Description'):
-            rd.FIR.Description = s.FIR.Description
-        rd.FIR.InputUnits = s.FIR.InputUnits
-        rd.FIR.OutputUnits = s.FIR.OutputUnits
-        rd.FIR.Symmetry = s.FIR.Symmetry
-        rd.FIR.NumeratorCoefficient = s.FIR.NumeratorCoefficient
+        elemDict = s.FIR.exportdict()
+        rd.FIR = sisxmlparser.SISFIRType(**elemDict)
         rd.FIR.name = "FS_%d_%s"%(s.number, prototypeChan)
         rd.FIR.SISNamespace = sisNamespace
     elif hasattr(s, "Coefficients"):
-        rd.Coefficients = sisxmlparser.SISCoefficientsType()
-        if hasattr(s.Coefficients, 'Description'):
-            rd.Coefficients.Description = s.Coefficients.Description
-        rd.Coefficients.InputUnits = s.Coefficients.InputUnits
-        rd.Coefficients.OutputUnits = s.Coefficients.OutputUnits
-        rd.Coefficients.CfTransferFunctionType = s.Coefficients.CfTransferFunctionType
-        if hasattr(s.Coefficients, "Numerator"):
-            rd.Coefficients.Numerator = s.Coefficients.Numerator
-        if hasattr(s.Coefficients, "Denominator"):
-            rd.Coefficients.Denominator = s.Coefficients.Denominator
+        rd.Coefficients = toSISCoefficients(s.Coefficients, sisNamespace)
         rd.Coefficients.name = "FS_%d_%s"%(s.number, prototypeChan)
-        rd.Coefficients.SISNamespace = sisNamespace
     elif hasattr(s, "StageGain") and hasattr(s.StageGain, 'InputUnits') and hasattr(s.StageGain, 'OutputUnits'):
         # preamp gain only stage, but we already fixed the units
         rd = None
@@ -604,19 +540,16 @@ def main():
                 # add stage 1 as sensor
                 sensor = sisxmlparser.ResponseDictType()
                 if hasattr(namedResponse.Stage[0], "PolesZeros"):
-                    sensor.PolesZeros = toSISPolesZeros(namedResponse.Stage[0].PolesZeros)
+                    sensor.PolesZeros = toSISPolesZeros(namedResponse.Stage[0].PolesZeros, sisNamespace)
                     sensor.PolesZeros.name = "S_"+prototypeChan
-                    sensor.PolesZeros.SISNamespace = sisNamespace
                 elif hasattr(namedResponse.Stage[0], "Coefficients"):
-                    sensor.Coefficients = toSISCoefficients(namedResponse.Stage[0].Coefficients)
+                    sensor.Coefficients = toSISCoefficients(namedResponse.Stage[0].Coefficients, sisNamespace)
                     sensor.Coefficients.name = "S_"+prototypeChan
-                    sensor.Coefficients.SISNamespace = sisNamespace
                 elif isSimpleSOHSingleStage(namedResponse):
                     sensor = None
                 elif hasattr(namedResponse.Stage[0], "Polynomial"):
-                    sensor.Polynomial = toSISPolynomial(namedResponse.Stage[0].Polynomial)
+                    sensor.Polynomial = toSISPolynomial(namedResponse.Stage[0].Polynomial, sisNamespace)
                     sensor.Polynomial.name = "S_"+prototypeChan
-                    sensor.Polynomial.SISNamespace = sisNamespace
                 else:
                     print("WARNING: sensor response for %s doesnot have PolesZeros"%(prototypeChan,))
                     return
