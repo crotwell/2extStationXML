@@ -2,7 +2,7 @@
 
 '''
 sisxmlparser3_0.py
-2020-05-06 (tmp version 0.3)
+2020-05-20 (tmp version 0.4)
 
 This module contains classes to parse an XML document in the extended
 FDSNStationXML format as defined in sis_extension.xsd (v3.0)
@@ -182,7 +182,8 @@ class SISBase(object):
         self.allowed_attrs = [t[0] for t in self.ATTRIBS + self.ELEMS]
         self.reqdattrs = [t[0] for t in self.ATTRIBS + self.ELEMS if t[2]]
         self.extnstype = f'{self.EXTNS}:{self.EXTTYPE}' if self.EXTNS and self.EXTTYPE else ''
-
+        if self.extnstype:
+            self.settype(self.extnstype)
         for e, t, isreqd, ismulti in self.ATTRIBS + self.ELEMS:
             if e in kw:
                 v = kw.pop(e)
@@ -1364,7 +1365,7 @@ class SISRootType(RootType):
             setattr(self, 'sis:schemaLocation', '{0} {2}'.format(*nsd['sis']))
         if getattr(self, 'xmlns:sis', None) is None:
             setattr(self, 'xmlns:sis', nsd['sis'][0])
-
+        
 
 
 def parse(inFileName, isExtStaXml = True):
