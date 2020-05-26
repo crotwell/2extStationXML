@@ -2,7 +2,7 @@
 
 '''
 sisxmlparser3_0.py
-2020-05-20 (tmp version 0.4)
+2020-05-21 (tmp version 0.5)
 
 This module contains classes to parse an XML document in the extended
 FDSNStationXML format as defined in sis_extension.xsd (v3.0)
@@ -196,7 +196,22 @@ class SISBase(object):
                     setattr(self, e, val)
                 else:
                     # complex type.
-                    setattr(self, e, v)
+                    if ismulti:
+                        childobjs = []
+                        
+                        for val in v:
+                            if type(val) == dict:
+                                child = t(**val)
+                            else:
+                                child = val
+                            childobjs.append(child)
+                        setattr(self, e, childobjs)
+                    else:
+                        if type(v) == dict:
+                            child = t(**v)
+                        else:
+                            child = v
+                        setattr(self, e, child)        
         if kw:
             raise SISError(f'Unexpected keys {kw}')
 
