@@ -315,6 +315,10 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
                     if VERBOSE: print("        logger in NRL: %s"%(xcode,))
                     loggerSubResponse.RESPFile = sisxmlparser.RESPFileType()
                     loggerSubResponse.RESPFile.ValueOf = lll[0][0].replace("nrl", NRL_PREFIX)
+                    # don't need these if logger came from NRL
+                    preampSubResponse = None
+                    atodSubResponse = None
+                    loggerSubResponse.sequenceNumber -= 2
                     # stage To/From not required for NRL responses, use SIS rules
                     #loggerSubResponse.RESPFile.stageFrom = lll[0][2]
                     #loggerSubResponse.RESPFile.stageTo = lll[0][3]
@@ -331,30 +335,46 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
         c.Response.SubResponse.append( loggerSubResponse )
     return c
 
+
+def toSISNetwork(n):
+    elemDict = n.exportdict(ignorewarning=False)
+    sisNet = sisxmlparser.SISNetworkType(**elemDict)
+    sisNet.Station = []
+    return sisNet
+
+
+def toSISStation(s):
+    elemDict = s.exportdict(ignorewarning=False)
+    sisSta = sisxmlparser.SISStationType(**elemDict)
+    sisSta.Channel = []
+    return sisSta
+
 def toSISChannel(ch):
     '''
     copies all attrs from the input fdsn channel object to a sis channel, except
     the Response as that needs to be a SISResponseType
     '''
-    elemDict = ch.exportdict(ignorewarning=True)
-    elemDict.pop('Response')    # remove since this needs to SISResponseType
+    savedResponse = ch.Response
+    ch.Response = None
+    elemDict = ch.exportdict(ignorewarning=False)
     sisCh = sisxmlparser.SISChannelType(**elemDict)
+    ch.Response = savedResponse
     return sisCh
 
 def toSISPolesZeros(pz, sisNamespace):
-    elemDict = pz.exportdict(ignorewarning=True)
+    elemDict = pz.exportdict(ignorewarning=False)
     sisPZ = sisxmlparser.SISPolesZerosType(**elemDict)
     sisPZ.SISNamespace = sisNamespace
     return sisPZ
 
 def toSISCoefficients(coef, sisNamespace):
-    elemDict = coef.exportdict(ignorewarning=True)
+    elemDict = coef.exportdict(ignorewarning=False)
     sisCoef = sisxmlparser.SISCoefficientsType(**elemDict)
     sisCoef.SISNamespace = sisNamespace
     return sisCoef
 
 def toSISPolynomial(poly, sisNamespace):
-    elemDict = poly.exportdict(ignorewarning=True)
+    elemDict = poly.exportdict(ignorewarning=False)
     sisPoly = sisxmlparser.SISPolynomialType(**elemDict)
     sisPoly.SISNamespace = sisNamespace
     return sisPoly
@@ -395,22 +415,25 @@ def main():
             return
 
         # Parse an xml file
-        rootobj = sisxmlparser.parse(parseArgs.stationxml)
+        isExtStaXml = False
+        rootobj = sisxmlparser.parse(parseArgs.stationxml, isExtStaXml)
         if hasattr(rootobj, 'comments'):
             origModuleURI = rootobj.ModuleURI
         else:
             origModuleURI = ""
-
-        rootobj.schemaVersion='3.0'
-        rootobj.Source=parseArgs.namespace
-        rootobj.Sender=parseArgs.namespace
-        rootobj.Module='sta2extsta.py'
-        rootobj.ModuleURI='https://github.com/crotwell/2extStationXML'
-        rootobj.Created=datetime.datetime.now()
+        sisRoot = sisxmlparser.SISRootType()
+        sisRoot.schemaVersion='3.0'
+        sisRoot.Source=parseArgs.namespace
+        sisRoot.Sender=parseArgs.namespace
+        sisRoot.Module='sta2extsta.py'
+        sisRoot.ModuleURI='https://github.com/crotwell/2extStationXML'
+        sisRoot.Created=datetime.datetime.now()
 
         if not hasattr(rootobj, 'comments'):
-            rootobj.comments = []
-        rootobj.comments.append("From: "+origModuleURI)
+            sisRoot.comments = []
+        else:
+            sisRoot.comments = rootobj.comments
+        sisRoot.comments.append("From: "+origModuleURI)
 
         # del non-matching channels
         if parseArgs.onlychan:
@@ -454,13 +477,6 @@ def main():
                              print("WARNING: can't fix stage 1, no poleszeros for %s.%s.%s.%s"%(n.code, s.code, c.locationCode, c.code))
 
 
-
-# Cannot use 'xsi:type' as an identifier which is how it is
-# stored in the object. So a set function has been defined for this
-# one case. Use it only when the type has been extended - RootType,
-# StationType, ChannelType, GainType, and ResponseType
-        rootobj.settype('sis:RootType')
-
         if not os.path.exists(parseArgs.nrl):
             print("ERROR: can't find nrl dir at '%s', get with 'svn checkout http://seiscode.iris.washington.edu/svn/nrl/trunk nrl"%(parseArgs.nrl,))
             return
@@ -491,6 +507,7 @@ def main():
 
         for n in rootobj.Network:
           print("%s "%(n.code,))
+          sisNet = None
           for s in n.Station:
             print("    %s   "%(s.code, ))
             if not hasattr(s, 'Operator'):
@@ -506,7 +523,6 @@ def main():
                  print("        %s.%s --delcurrent: delete channel ends after now %s "%(c.locationCode, c.code, checkNRL.getChanCodeId(n,s,c),))
               else:
                  tempChan.append(c)
-            s.Channel = tempChan
 
             tempChan = []
             for c in s.Channel:
@@ -518,7 +534,16 @@ def main():
                 allChanCodes[key].append(sisChan)
                 fixResponseNRL(n, s, sisChan, c.Response, uniqWithNRL, sisNamespace)
                 tempChan.append(sisChan)
-            s.Channel = tempChan
+            if len(tempChan) > 0:
+                if sisNet is None:
+                    sisNet = toSISNetwork(n)
+                    sisNet.Station = [] # to be added later
+                    if not hasattr(sisRoot, 'Network'):
+                        sisRoot.Network = []
+                    sisRoot.Network.append(sisNet)
+                sisSta = toSISStation(s)
+                sisNet.Station.append(sisSta)
+                sisSta.Channel = tempChan
 
             for key, epochList in allChanCodes.items():
               epochList.sort(key=getStartDate)
@@ -628,15 +653,14 @@ def main():
 
 # add named non-NRL responses to HardwareResponse but not if respGroup is empty
         if len(respGroup.ResponseDict) > 0:
-            if not hasattr(rootobj, "HardwareResponse"):
-                rootobj.HardwareResponse = sisxmlparser.HardwareResponseType()
-            if not hasattr(rootobj.HardwareResponse, "ResponseDictGroup"):
-                rootobj.HardwareResponse.ResponseDictGroup = respGroup
+            if not hasattr(sisRoot, "HardwareResponse"):
+                sisRoot.HardwareResponse = sisxmlparser.HardwareResponseType()
+            if not hasattr(sisRoot.HardwareResponse, "ResponseDictGroup"):
+                sisRoot.HardwareResponse.ResponseDictGroup = respGroup
             else:
-                raise SISError ("rootobj already has HardwareResponse.ResponseDictGroup!")
+                raise SISError ("sisRoot already has HardwareResponse.ResponseDictGroup!")
 # Finally after the instance is built export it.
-        rootobj.exportxml(parseArgs.outfile, ignorewarning=parseArgs.ignorewarning)
-#        rootobj.exportxml(sys.stdout, 'FDSNStationXML', 'fsx', 0)
+        sisRoot.exportxml(parseArgs.outfile, ignorewarning=parseArgs.ignorewarning)
 
 
 if __name__ == "__main__":
