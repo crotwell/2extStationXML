@@ -1067,15 +1067,14 @@ class RootType (SISBase):
         super(RootType, self).__init__(**kw)
         self.nskey = self.EXTNS if self.IS_EXTSTA else self.NS
         # set defaults for the attributes that are expected to be written out if they are not provided
-        if getattr(self, 'schemaVersion', None) is None:
-            self.schemaVersion = nsd[self.nskey][3]
         if getattr(self, 'xmlns', None) is None:
             self.xmlns = nsd['fsx'][0]
         if getattr(self, 'xmlns:xsi', None) is None:
             setattr(self, 'xmlns:xsi', nsd['xsi'][0])
-
-        if getattr(self, 'xsi:schemaLocation', None) is None:
+        if not 'xsi:schemaLocation' in kw:
             setattr(self, 'xsi:schemaLocation', '{0} {2}'.format(*nsd['fsx']))
+        if not 'schemaVersion' in kw:
+            setattr(self, 'schemaVersion', '{0} {2}'.format(*nsd['fsx'][3]))
 
     def validate(self):
         super(RootType, self).validate()
@@ -1376,12 +1375,20 @@ class SISRootType(RootType):
     def __init__(self, **kw):
         super(SISRootType, self).__init__(**kw)
         # set defaults for the attributes that are expected to be written out if they are not provided
-        if getattr(self, 'sis:schemaLocation', None) is None:
-            setattr(self, 'sis:schemaLocation', '{0} {2}'.format(*nsd['sis']))
         if getattr(self, 'xmlns:sis', None) is None:
             setattr(self, 'xmlns:sis', nsd['sis'][0])
-        
+        # override xsi:schemaLocation set in FDSN RootType
+        if not 'xsi:schemaLocation' in kw:
+            setattr(self, 'xsi:schemaLocation', '{0} {2}'.format(*nsd['sis']))
+        if not 'schemaVersion' in kw:
+            setattr(self, 'schemaVersion', '{0} {2}'.format(*nsd['sis'][3]))
 
+
+def parseFdsnStaXml(inFileName):
+    return parse(inFileName, isExtStaXml = False)
+
+def parseExtStaXml(inFileName):
+    return parse(inFileName, isExtStaXml = True)
 
 def parse(inFileName, isExtStaXml = True):
     ''' Inputs: xmlfile to be parsed and indicate whether it is ExtStaXML or FDSNStatioNXML
@@ -1389,6 +1396,26 @@ def parse(inFileName, isExtStaXml = True):
     global docnsprefixmap
     doc = parsexml_(inFileName)
     root = doc.getroot()
+    schemaLoc = root.get('{http://www.w3.org/2001/XMLSchema-instance}schemaLocation')
+    schemaLoc = schemaLoc.split()[0]
+    sisSchemaVer = nsd['sis'][3]
+    sisSchemaLoc = nsd['sis'][0]
+    fdsnSchemaVer = nsd['fsx'][3]
+    fdsnSchemaLoc = nsd['fsx'][0]
+    if isExtStaXml:
+        # error if not sis schema after trimming version
+        if not sisSchemaLoc[:(-1*len(sisSchemaVer))] in schemaLoc:
+            raise SISError(f"isExtStaXml is True but root element doesn't have SIS schemalocation, found {schemaLoc}")
+        # warning if is sis schema loc but wrong version
+        if not sisSchemaLoc == schemaLoc:
+            print(f'Warning: parser is coded to SIS ExtStaXml version {sisSchemaVer},')
+            print(f'  expected    {sisSchemaLoc}')
+            print(f'  but found:  {schemaLoc}')
+    else:
+        if not fdsnSchemaLoc == schemaLoc:
+            print(f'Warning: parser is coded to FDSN StaXml version {fdsnSchemaVer},')
+            print(f'  expected    {fdsnSchemaLoc}')
+            print(f'  but found:  {schemaLoc}')
     docnsmap = root.nsmap
     for k, uri in docnsmap.items():
         #remap the prefixes used in this document to the default defined in this parser using the uri
