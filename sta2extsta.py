@@ -194,6 +194,24 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
                         preampSubResponse.sequenceNumber -= 1
                         atodSubResponse.sequenceNumber -= 1
                         loggerSubResponse.sequenceNumber -= 1
+
+                    elif not hasattr(oldResponse.Stage[0], 'Polynomial') and hasattr(oldResponse.Stage[0], 'Coefficients'):
+                        # ResponseDictLink cannot do Coefficients, so use ResponseDetail
+                        if VERBOSE: print("         sensor has no PolesZeros in stage, use Coefficients: {}".format(xcode))
+                        if not hasattr(oldResponse.Stage[0], 'StageGain'):
+                            raise Exception("         sensor has no StageGain in stage 0: {}".format(xcode))
+                        if hasattr(oldResponse.Stage[0], 'Decimation'):
+                            if oldResponse.Stage[0].Decimation.Factor == 1:
+                                print("       WARNING: {} stage {} has Decimation with Coefficients with factor 1, skipping ".format(chanCodeId, 0))
+                            else:
+                                raise Exception("         sensor has Decimation in stage 0: {}".format(xcode))
+                        sensorSubResponse.ResponseDetail = sisxmlparser.SubResponseDetailType()
+                        sensorSubResponse.ResponseDetail.Coefficients = toSISCoefficients(oldResponse.Stage[0].Coefficients, namespace)
+                        sensorSubResponse.ResponseDetail.Gain = sisxmlparser.SISGainType()
+                        sensorSubResponse.ResponseDetail.Gain.Value = oldResponse.Stage[0].StageGain.Value
+                        sensorSubResponse.ResponseDetail.Gain.Frequency = oldResponse.Stage[0].StageGain.Frequency
+                        sensorSubResponse.ResponseDetail.Gain.InputUnits = oldResponse.Stage[0].Coefficients.InputUnits
+                        sensorSubResponse.ResponseDetail.Gain.OutputUnits = oldResponse.Stage[0].Coefficients.OutputUnits
                     else:
                         sensorSubResponse.ResponseDictLink = sisxmlparser.ResponseDictLinkType2()
                         sensorSubResponse.ResponseDictLink.Name = "S_"+prototypeChan
@@ -212,11 +230,6 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
                                 sensorSubResponse.ResponseDictLink.Type = 'PolesZeros'
                                 sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].PolesZeros.InputUnits
                                 sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].PolesZeros.OutputUnits
-                            elif hasattr(oldResponse.Stage[0], 'Coefficients'):
-                                if VERBOSE: print("         sensor has no PolesZeros in stage, use Coefficients: {}".format(xcode))
-                                sensorSubResponse.ResponseDictLink.Type = 'Coefficients'
-                                sensorSubResponse.ResponseDictLink.Gain.InputUnits = oldResponse.Stage[0].Coefficients.InputUnits
-                                sensorSubResponse.ResponseDictLink.Gain.OutputUnits = oldResponse.Stage[0].Coefficients.OutputUnits
                             else:
                                 if VERBOSE: print("         WARNING: sensor has no PolesZeros, Coefficients or Polynomial in stage: {}".format(xcode))
 
