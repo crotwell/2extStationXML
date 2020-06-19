@@ -2,7 +2,7 @@
 
 '''
 sisxmlparser3_0.py
-2020-05-21 (tmp version 0.5)
+2020-05-28 (tmp version 0.6)
 
 This module contains classes to parse an XML document in the extended
 FDSNStationXML format as defined in sis_extension.xsd (v3.0)
@@ -92,7 +92,6 @@ def get_remapped_type(nstype):
     remappedprefix = None
     if ns in docnsprefixmap:
         remappedprefix = nsd[docnsprefixmap[ns]][1]
-
     if remappedprefix:
         return f'{remappedprefix}:{type}'
     else:
@@ -211,7 +210,7 @@ class SISBase(object):
                             child = t(**v)
                         else:
                             child = v
-                        setattr(self, e, child)        
+                        setattr(self, e, child)
         if kw:
             raise SISError(f'Unexpected keys {kw}')
 
@@ -238,6 +237,8 @@ class SISBase(object):
 
         for child in node:
             self.buildchildren(child, node)
+        
+        
 
     def buildchildren(self, child, node):
         '''Parse the child node and save all elements to the instance of this class and call function to read its child nodes'''
@@ -1067,19 +1068,26 @@ class RootType (SISBase):
         super(RootType, self).__init__(**kw)
         self.nskey = self.EXTNS if self.IS_EXTSTA else self.NS
         # set defaults for the attributes that are expected to be written out if they are not provided
+        
+        if getattr(self, 'schemaVersion', None) is None:
+            self.schemaVersion = nsd[self.nskey][3]
         if getattr(self, 'xmlns', None) is None:
             self.xmlns = nsd['fsx'][0]
         if getattr(self, 'xmlns:xsi', None) is None:
             setattr(self, 'xmlns:xsi', nsd['xsi'][0])
-        if not 'xsi:schemaLocation' in kw:
-            setattr(self, 'xsi:schemaLocation', '{0} {2}'.format(*nsd['fsx']))
-        if not 'schemaVersion' in kw:
-            setattr(self, 'schemaVersion', '{0} {2}'.format(*nsd['fsx'][3]))
+        if getattr(self, 'xsi:schemaLocation', None) is None:
+            setattr(self, 'xsi:schemaLocation', '{0} {2}'.format(*nsd[self.nskey]))
 
     def validate(self):
         super(RootType, self).validate()
         if getattr(self, 'schemaVersion') and self.schemaVersion != nsd[self.nskey][3]:
             raise SISError('Invalid schemaversion {0}. Parser expects {1}'.format(self.schemaVersion, nsd[self.nskey][3]))
+
+        schemaLoc = getattr(self, 'xsi:schemaLocation')
+        expectedLoc = '{0} {2}'.format(*nsd[self.nskey])
+        if schemaLoc != expectedLoc:
+            print ('Warning: Invalid xsi:schemaLocation {0}. Parser expects {1}'.format(schemaLoc, expectedLoc))
+        
 
 class FilterIDType (SISBase):
     ELEMS = (('Name', 'text', True, False),
@@ -1364,7 +1372,6 @@ class SISRootType(RootType):
          ('HardwareResponse', HardwareResponseType, False, False),
         )
     ATTRIBS = RootType.ATTRIBS + (
-        ('sis:schemaLocation', 'text', False, False),
         ('xmlns:sis', 'text', False, False),
         )
     EXTNS = 'sis'
@@ -1377,12 +1384,6 @@ class SISRootType(RootType):
         # set defaults for the attributes that are expected to be written out if they are not provided
         if getattr(self, 'xmlns:sis', None) is None:
             setattr(self, 'xmlns:sis', nsd['sis'][0])
-        # override xsi:schemaLocation set in FDSN RootType
-        if not 'xsi:schemaLocation' in kw:
-            setattr(self, 'xsi:schemaLocation', '{0} {2}'.format(*nsd['sis']))
-        if not 'schemaVersion' in kw:
-            setattr(self, 'schemaVersion', '{0} {2}'.format(*nsd['sis'][3]))
-
 
 def parseFdsnStaXml(inFileName):
     return parse(inFileName, isExtStaXml = False)
@@ -1396,38 +1397,20 @@ def parse(inFileName, isExtStaXml = True):
     global docnsprefixmap
     doc = parsexml_(inFileName)
     root = doc.getroot()
-    schemaLoc = root.get('{http://www.w3.org/2001/XMLSchema-instance}schemaLocation')
-    schemaLoc = schemaLoc.split()[0]
-    sisSchemaVer = nsd['sis'][3]
-    sisSchemaLoc = nsd['sis'][0]
-    fdsnSchemaVer = nsd['fsx'][3]
-    fdsnSchemaLoc = nsd['fsx'][0]
-    if isExtStaXml:
-        # error if not sis schema after trimming version
-        if not sisSchemaLoc[:(-1*len(sisSchemaVer))] in schemaLoc:
-            raise SISError(f"isExtStaXml is True but root element doesn't have SIS schemalocation, found {schemaLoc}")
-        # warning if is sis schema loc but wrong version
-        if not sisSchemaLoc == schemaLoc:
-            print(f'Warning: parser is coded to SIS ExtStaXml version {sisSchemaVer},')
-            print(f'  expected    {sisSchemaLoc}')
-            print(f'  but found:  {schemaLoc}')
-    else:
-        if not fdsnSchemaLoc == schemaLoc:
-            print(f'Warning: parser is coded to FDSN StaXml version {fdsnSchemaVer},')
-            print(f'  expected    {fdsnSchemaLoc}')
-            print(f'  but found:  {schemaLoc}')
     docnsmap = root.nsmap
     for k, uri in docnsmap.items():
         #remap the prefixes used in this document to the default defined in this parser using the uri
         if uri in insd:
             docnsprefixmap[k] = insd[uri]
-
+        else:
+            raise SISError(f'Warning: Unknown/unexpected namespace. Prefix:{k}, uri: {uri}')
     if isExtStaXml:
         obj = SISRootType()
     else:
         obj = RootType()
 
     obj.build(root)
+    obj.validate()
     return obj
 
 
@@ -1452,14 +1435,14 @@ def main():
     # Export xml
     obj.exportxml(sys.stdout, ignorewarning=options.ignorewarning)
 
-    # Export the python object representation
-    obj.exportobj(sys.stdout, ignorewarning=options.ignorewarning)
-
-    ## Convert the python object into a dictionary
-    exp = obj.exportdict(ignorewarning=options.ignorewarning)
-    import pprint
-    pp = pprint.PrettyPrinter(indent=1)
-    pp.pprint(exp)
+    ## Export the python object representation
+    #obj.exportobj(sys.stdout, ignorewarning=options.ignorewarning)
+    #
+    ### Convert the python object into a dictionary
+    #exp = obj.exportdict(ignorewarning=options.ignorewarning)
+    #import pprint
+    #pp = pprint.PrettyPrinter(indent=1)
+    #pp.pprint(exp)
 
 if __name__ == '__main__':
     main()
