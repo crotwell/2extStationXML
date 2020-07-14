@@ -2,7 +2,7 @@
 
 '''
 sisxmlparser3_0.py
-2020-05-28 (tmp version 0.6)
+2020-05-28
 
 This module contains classes to parse an XML document in the extended
 FDSNStationXML format as defined in sis_extension.xsd (v3.0)
@@ -197,7 +197,6 @@ class SISBase(object):
                     # complex type.
                     if ismulti:
                         childobjs = []
-                        
                         for val in v:
                             if type(val) == dict:
                                 child = t(**val)
@@ -1403,7 +1402,8 @@ def parse(inFileName, isExtStaXml = True):
         if uri in insd:
             docnsprefixmap[k] = insd[uri]
         else:
-            raise SISError(f'Warning: Unknown/unexpected namespace. Prefix:{k}, uri: {uri}')
+            docnsprefixmap[k] = k
+            print (f'Warning: Unknown/unexpected namespace: {k}: {uri}. Elements in this namespace will be ignored.')
     if isExtStaXml:
         obj = SISRootType()
     else:
