@@ -72,8 +72,6 @@ def isAtoDStage(namedResponse, sNum):
         reason = "Stage {}={} does not have Coefficients".format(sNum, stage.number)
     elif hasattr(stage.Coefficients, 'Denominator'):
         reason = "Stage {}={} has Coefficients with Denominator".format(sNum, stage.number)
-    elif hasattr(stage.Coefficients, 'Numerator'):
-        reason = "Stage {}={} has Coefficients with Numerator".format(sNum, stage.number)
     elif not hasattr(stage, 'Decimation'):
         reason = "Stage {}={} does not have Decimation".format(sNum, stage.number)
     elif not hasattr(stage.Coefficients, 'InputUnits'):
@@ -83,7 +81,13 @@ def isAtoDStage(namedResponse, sNum):
     elif not (stage.Coefficients.InputUnits.Name == 'V' or stage.Coefficients.InputUnits.Name == 'volt'):
         reason = "Stage {}={} InputUnits {} are not V or volt".format(sNum, stage.number, stage.Coefficients.InputUnits.Name)
     elif not (stage.Coefficients.OutputUnits.Name == 'count' or stage.Coefficients.OutputUnits.Name == 'counts'):
-        reason = "Stage {}={} InputUnits {} are not V or volt".format(sNum, stage.number, stage.Coefficients.OutputUnits.Name)
+        reason = "Stage {}={} OutputUnits {} are not count or counts".format(sNum, stage.number, stage.Coefficients.OutputUnits.Name)
+    elif hasattr(stage.Coefficients, 'Numerator'):
+        if len(stage.Coefficients.Numerator) > 1:
+            reason = "Stage {}={} has Coefficients with more than one Numerator".format(sNum, stage.number)
+        elif len(stage.Coefficients.Numerator) == 1 and stage.Coefficients.Numerator[0].ValueOf != 1.0:
+            reason = "Stage {}={} has Coefficients with Numerator where value is not 1.0, {}".format(sNum, stage.number,stage.Coefficients.Numerator[0].ValueOf)
+        #else ok?
     else:
         reason = ""
     return reason == "", reason
@@ -300,7 +304,12 @@ def fixResponseNRL(n, s, c, oldResponse, uniqResponse, namespace):
                             loggerSubResponse.sequenceNumber = atodSubResponse.sequenceNumber +1
 
                         if atodStageInOrig < 0:
-                            raise Exception('Cannot find AtoD stage in {}'.format(namedResponse))
+                            # print reason for each stage failing
+                            outReason = ""
+                            for stage in namedResponse.Stage:
+                                isAtoD, isAtoDReason = isAtoDStage(namedResponse, stage.number)
+                                outReason += f"isAtoDStage {stage.number}: {isAtoD}: {isAtoDReason}/n"
+                            raise Exception('Cannot find AtoD stage for {}, \n{}'.format(xcode, outReason))
 
                         isAtoD, isAtoDReason = isAtoDStage(namedResponse, atodStageInOrig)
                         if not isAtoD:
