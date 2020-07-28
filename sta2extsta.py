@@ -538,16 +538,16 @@ def main():
                 sOp.Agency = parseArgs.operator
                 s.Operator.append(sOp)
             allChanCodes = {}
-            tempChan = []
+            staChanToProcess = []
             for c in s.Channel:
               if parseArgs.delcurrent and (not hasattr(c, 'endDate') or
               c.endDate > datetime.datetime.now(datetime.timezone.utc) ):
                  print("        %s.%s --delcurrent: delete channel ends after now %s "%(c.locationCode, c.code, checkNRL.getChanCodeId(n,s,c),))
               else:
-                 tempChan.append(c)
+                 staChanToProcess.append(c)
 
             tempChan = []
-            for c in s.Channel:
+            for c in staChanToProcess:
                 print("        %s.%s "%(c.locationCode, c.code,))
                 sisChan = toSISChannel(c)
                 key = "%s.%s"%(c.locationCode, c.code)
