@@ -11,13 +11,16 @@ then
     echo "wget http://wiki.anss-sis.scsn.org/SIStrac/raw-attachment/wiki/SIS/Code/validator.tar.gz"
     echo "tar ztf validator.tar.gz"
     echo
-elif [[ ! -r 'xerces-2_12_0-xml-schema-1.1/xercesImpl.jar' ]]
+elif [[ ! -r 'xerces-2_12_1-xml-schema-1.1/xercesImpl.jar' ]]
 then
     echo
     echo "Xerces not in current directory, please get with:"
-    echo
-    echo "wget http://mirror.cc.columbia.edu/pub/software/apache/xerces/j/binaries/Xerces-J-bin.2.11.0-xml-schema-1.1-beta.tar.gz"
-    echo "tar zxf Xerces-J-bin.2.12.0-xml-schema-1.1.tar.gz"
+    echo 
+    echo "http://xerces.apache.org"
+    echo "or a mirror like:"
+    echo 
+    echo "wget http://ftp.wayne.edu/apache/xerces/j/binaries/Xerces-J-bin.2.12.1-xml-schema-1.1.tar.gz"
+    echo "tar zxf Xerces-J-bin.2.12.1-xml-schema-1.1.tar.gz"
     echo
     echo "Note it must be the xml-schema-1.1 version."
     echo
