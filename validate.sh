@@ -41,7 +41,7 @@ else
     then
         echo "Warn: cannot read stationxml file"
     else
-        ERRFILE=`java -cp xerces-2_12_0-xml-schema-1.1/xercesImpl.jar:xerces-2_12_0-xml-schema-1.1/xml-apis.jar:xerces-2_12_0-xml-schema-1.1/serializer.jar:xerces-2_12_0-xml-schema-1.1/org.eclipse.wst.xml.xpath2.processor_1.2.0.jar:xmlvalidator ValidateStationXml -s $SCHEMA -i $*`
+        ERRFILE=`java -cp xerces-2_12_1-xml-schema-1.1/xercesImpl.jar:xerces-2_12_1-xml-schema-1.1/xml-apis.jar:xerces-2_12_1-xml-schema-1.1/serializer.jar:xerces-2_12_1-xml-schema-1.1/org.eclipse.wst.xml.xpath2.processor_1.2.0.jar:xmlvalidator ValidateStationXml -s $SCHEMA -i $*`
 
         if [ $ERRFILE = "0" ]
         then
