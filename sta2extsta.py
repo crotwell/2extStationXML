@@ -42,6 +42,7 @@ def initArgParser():
   parser.add_argument('--operator', default='Testing', help="SIS operator to use for stations, see http://anss-sis.scsn.org/sis/master/org/")
   parser.add_argument('--delcurrent', action="store_true", help="remove channels that are currently operating. Only do this if you want to go back and manually via the web interface add hardware for current epochs.")
   parser.add_argument('--onlychan', default=False, help="only channels with codes matching regular expression, ie BH. for all broadband. Can also match locid like '00\.HH.' Empty loc ids for filtering as '--'")
+  parser.add_argument('--onlysta', default=False, help="only stations with codes matching regular expression, ie ABC. ")
   parser.add_argument('-o', '--outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
   parser.add_argument('-v', '--verbose', action='store_true', help="verbose output")
   parser.add_argument('--ignorewarning', action='store_true', default=False)
@@ -456,6 +457,15 @@ def main():
         else:
             sisRoot.comments = rootobj.comments
         sisRoot.comments.append("From: "+origModuleURI)
+
+        if parseArgs.onlysta:
+            pattern = re.compile(parseArgs.onlysta)
+            for n in rootobj.Network:
+                tempSta = []
+                for s in n.Station:
+                    if pattern.match(s.code):
+                        tempSta.append(s)
+                n.Station = tempSta
 
         # del non-matching channels
         if parseArgs.onlychan:
