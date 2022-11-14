@@ -624,19 +624,18 @@ def main():
                 # array index is 0-base, stage number is 1-base, so -1
                 # first logger stage should be AtoD stage and SIS wants
                 # that separate from the filter chain
-                if not (isPreampStage(namedResponse, loggerStartStage) and isAtoDStage(namedResponse, loggerStartStage+1) or isAtoDStage(namedResponse, loggerStartStage)):
+                if not (isPreampStage(namedResponse, loggerStartStage)[0] and isAtoDStage(namedResponse, loggerStartStage+1)[0] or isAtoDStage(namedResponse, loggerStartStage)[0]):
                    raise Exception("ERROR: expecting preamp then AtoD or AtoD stage, which should have Coefficients, but not found. %d %s"%(loggerStartStage, prototypeChan))
 
                 # now deal with actual filter chain
-
                 respDictSeqNum = 1
                 for s in namedResponse.Stage[loggerStartStage -1 : ]:
                     # do not output preamp or atod as part of filter seq.
-                    if s.number == loggerStartStage and isPreampStage(namedResponse, loggerStartStage):
+                    if s.number == loggerStartStage and isPreampStage(namedResponse, loggerStartStage)[0]:
                         continue
-                    if s.number == loggerStartStage and isAtoDStage(namedResponse, loggerStartStage):
+                    if s.number == loggerStartStage and isAtoDStage(namedResponse, loggerStartStage)[0]:
                         continue
-                    if s.number == loggerStartStage+1 and isAtoDStage(namedResponse, loggerStartStage+1):
+                    if s.number == loggerStartStage+1 and isAtoDStage(namedResponse, loggerStartStage+1)[0]:
                         continue
 
                     filterStage = sisxmlparser.FilterStageType()
