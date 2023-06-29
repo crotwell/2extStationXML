@@ -20,11 +20,11 @@ wget -O sis_extension_3.0.xsd https://anss-sis.scsn.org/xml/ext-stationxml/3.0/s
         return False
 
 
-    if os.path.exists('xerces-2_12_1-xml-schema-1.1') and os.path.exists('xmlvalidator/ValidateStationXml.class'):
+    if os.path.exists('xerces-2_12_2-xml-schema-1.1') and os.path.exists('xmlvalidator/ValidateStationXml.class'):
         print("Validating xml...")
         try:
             classpath = '.:xmlvalidator'
-            xercesDir = 'xerces-2_12_1-xml-schema-1.1'
+            xercesDir = 'xerces-2_12_2-xml-schema-1.1'
             jarList = ['xercesImpl.jar',
                        'xml-apis.jar',
                        'serializer.jar',
@@ -47,13 +47,13 @@ wget -O sis_extension_3.0.xsd https://anss-sis.scsn.org/xml/ext-stationxml/3.0/s
         print("""
 ERROR: Can't find validator: %s %s
 
-        wget http://mirror.cc.columbia.edu/pub/software/apache//xerces/j/binaries/Xerces-J-bin.2.12.1-xml-schema-1.1.tar.gz
-        tar zxf Xerces-J-bin.2.12.1-xml-schema-1.1.tar.gz
+        wget http://mirror.cc.columbia.edu/pub/software/apache//xerces/j/binaries/Xerces-J-bin.2.12.2-xml-schema-1.1.tar.gz
+        tar zxf Xerces-J-bin.2.12.2-xml-schema-1.1.tar.gz
         wget http://maui.gps.caltech.edu/SIStrac/raw-attachment/wiki/SIS/Code/validator.tar.gz
         tar ztf validator.tar.gz
 
-We assume the directories validator and xerces-2_12_1-xml-schema-1.1
+We assume the directories validator and xerces-2_12_2-xml-schema-1.1
 are in current directory for validation.
-        """%(os.path.exists('xerces-2_12_1-xml-schema-1.1') , os.path.exists('validator/ValidateStationXml.class')))
+        """%(os.path.exists('xerces-2_12_2-xml-schema-1.1') , os.path.exists('validator/ValidateStationXml.class')))
 
         return False
