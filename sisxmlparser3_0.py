@@ -42,6 +42,7 @@ Namespace_extract_pat_ = re_.compile(r'{(.*)}(.*)')
 # nskey: (namespaceuri, prefix in output, schemalocation, schemaversion)
 nsd = {'xsi' : ('http://www.w3.org/2001/XMLSchema-instance', 'xsi', '', ''),
        'fsx' : ('http://www.fdsn.org/xml/station/1','', 'http://www.fdsn.org/xml/station/fdsn-station-1.1.xsd', '1.1'),
+       'iris' : ('http://www.fdsn.org/xml/station/1/iris','', '', ''),
        'sis' : ('http://anss-sis.scsn.org/xml/ext-stationxml/3.0', 'sis', 'https://anss-sis.scsn.org/xml/ext-stationxml/3.0/sis_extension.xsd', '3.0')
       }
 
